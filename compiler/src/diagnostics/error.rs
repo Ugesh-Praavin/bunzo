@@ -19,6 +19,8 @@ use std::path::PathBuf;
 /// | `BZ0003` | `UnexpectedCharacter`  | Unrecognized character in source   |
 /// | `BZ0004` | `UnterminatedString`   | String literal missing closing `"` |
 /// | `BZ0005` | `UnterminatedComment`  | Block comment missing closing `*/` |
+/// | `BZ0006` | `UnexpectedToken`      | Parser encountered unexpected token |
+/// | `BZ0007` | `ExpectedExpression`   | Parser expected an expression       |
 #[derive(Debug)]
 pub enum CompilerError {
     /// The requested source file was not found on disk.
@@ -52,6 +54,28 @@ pub enum CompilerError {
         /// The 1-based column number of the opening `/*`.
         column: usize,
     },
+
+    /// The parser encountered a token it did not expect.
+    UnexpectedToken {
+        /// Human-readable description of what was expected.
+        expected: String,
+        /// Human-readable description of what was found.
+        found: String,
+        /// The 1-based line number of the unexpected token.
+        line: usize,
+        /// The 1-based column number of the unexpected token.
+        column: usize,
+    },
+
+    /// The parser expected an expression but found something else.
+    ExpectedExpression {
+        /// Human-readable description of what was found.
+        found: String,
+        /// The 1-based line number.
+        line: usize,
+        /// The 1-based column number.
+        column: usize,
+    },
 }
 
 impl fmt::Display for CompilerError {
@@ -83,6 +107,18 @@ impl fmt::Display for CompilerError {
                 write!(
                     f,
                     "error[BZ0005]\n\nUnterminated block comment\n  --> line {line}, column {column}\n\nHint: add '*/' to close the comment.",
+                )
+            }
+            CompilerError::UnexpectedToken { expected, found, line, column } => {
+                write!(
+                    f,
+                    "error[BZ0006]\n\nUnexpected token: expected {expected}, found {found}\n  --> line {line}, column {column}",
+                )
+            }
+            CompilerError::ExpectedExpression { found, line, column } => {
+                write!(
+                    f,
+                    "error[BZ0007]\n\nExpected expression, found {found}\n  --> line {line}, column {column}",
                 )
             }
         }
@@ -155,5 +191,35 @@ mod tests {
         assert!(message.contains("BZ0005"), "should contain error code");
         assert!(message.contains("line 1"), "should contain line number");
         assert!(message.contains("*/"), "should suggest closing delimiter");
+    }
+
+    #[test]
+    fn display_unexpected_token() {
+        let err = CompilerError::UnexpectedToken {
+            expected: "variable name".to_string(),
+            found: "'='".to_string(),
+            line: 1,
+            column: 5,
+        };
+        let message = format!("{err}");
+
+        assert!(message.contains("BZ0006"), "should contain error code");
+        assert!(message.contains("variable name"), "should contain expected");
+        assert!(message.contains("'='"), "should contain found");
+        assert!(message.contains("line 1"), "should contain line number");
+    }
+
+    #[test]
+    fn display_expected_expression() {
+        let err = CompilerError::ExpectedExpression {
+            found: "'}'".to_string(),
+            line: 2,
+            column: 3,
+        };
+        let message = format!("{err}");
+
+        assert!(message.contains("BZ0007"), "should contain error code");
+        assert!(message.contains("Expected expression"), "should contain message");
+        assert!(message.contains("'}'"), "should contain found token");
     }
 }

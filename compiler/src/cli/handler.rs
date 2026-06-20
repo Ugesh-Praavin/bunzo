@@ -48,13 +48,11 @@ pub fn run(args: &[String]) -> Result<(), String> {
     // Phase 2: Tokenize source.
     let tokens = lexer::tokenize(&source).map_err(|e| format!("{e}"))?;
 
-    // Print token stream for verification.
-    for token in &tokens {
-        println!(
-            "[{}:{}]\t{:<20}\t{:?}",
-            token.line, token.column, format!("{:?}", token.kind), token.lexeme,
-        );
-    }
+    // Phase 3: Parse tokens into an AST.
+    let program = crate::parser::parse(tokens).map_err(|e| format!("{e}"))?;
+
+    // Print AST for verification.
+    println!("{:#?}", program);
 
     Ok(())
 }
