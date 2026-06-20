@@ -51,6 +51,9 @@ pub fn run(args: &[String]) -> Result<(), String> {
     // Phase 3: Parse tokens into an AST.
     let program = crate::parser::parse(tokens).map_err(|e| format!("{e}"))?;
 
+    // Phase 5: Semantic Analysis.
+    crate::semantic::analyze(&program).map_err(|e| format!("{e}"))?;
+
     // Phase 4: Interpret the AST.
     crate::runtime::execute(program).map_err(|e| format!("{e}"))?;
 
