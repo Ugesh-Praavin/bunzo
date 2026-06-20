@@ -250,6 +250,69 @@ fn test_division_by_zero() {
 }
 
 #[test]
+fn test_integer_overflow_uses_wrapping_behavior() {
+    assert_eq!(
+        eval_expr(Expression::BinaryOp {
+            operator: BinaryOperator::Add,
+            left: Box::new(Expression::IntegerLiteral { value: i64::MAX, line: 1, column: 1 }),
+            right: Box::new(Expression::IntegerLiteral { value: 1, line: 1, column: 1 }),
+            line: 1,
+            column: 1,
+        })
+        .unwrap(),
+        RuntimeValue::Integer(i64::MIN)
+    );
+
+    assert_eq!(
+        eval_expr(Expression::BinaryOp {
+            operator: BinaryOperator::Subtract,
+            left: Box::new(Expression::IntegerLiteral { value: i64::MIN, line: 1, column: 1 }),
+            right: Box::new(Expression::IntegerLiteral { value: 1, line: 1, column: 1 }),
+            line: 1,
+            column: 1,
+        })
+        .unwrap(),
+        RuntimeValue::Integer(i64::MAX)
+    );
+
+    assert_eq!(
+        eval_expr(Expression::BinaryOp {
+            operator: BinaryOperator::Multiply,
+            left: Box::new(Expression::IntegerLiteral { value: i64::MAX, line: 1, column: 1 }),
+            right: Box::new(Expression::IntegerLiteral { value: 2, line: 1, column: 1 }),
+            line: 1,
+            column: 1,
+        })
+        .unwrap(),
+        RuntimeValue::Integer(-2)
+    );
+
+    assert_eq!(
+        eval_expr(Expression::BinaryOp {
+            operator: BinaryOperator::Divide,
+            left: Box::new(Expression::IntegerLiteral { value: i64::MIN, line: 1, column: 1 }),
+            right: Box::new(Expression::IntegerLiteral { value: -1, line: 1, column: 1 }),
+            line: 1,
+            column: 1,
+        })
+        .unwrap(),
+        RuntimeValue::Integer(i64::MIN)
+    );
+
+    assert_eq!(
+        eval_expr(Expression::BinaryOp {
+            operator: BinaryOperator::Modulo,
+            left: Box::new(Expression::IntegerLiteral { value: i64::MIN, line: 1, column: 1 }),
+            right: Box::new(Expression::IntegerLiteral { value: -1, line: 1, column: 1 }),
+            line: 1,
+            column: 1,
+        })
+        .unwrap(),
+        RuntimeValue::Integer(0)
+    );
+}
+
+#[test]
 fn test_variables_and_print() {
     let stmts = vec![
         Statement::LetDeclaration {

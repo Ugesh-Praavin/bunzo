@@ -210,7 +210,9 @@ impl<W: std::io::Write> Interpreter<W> {
         column: usize,
     ) -> Result<RuntimeValue, CompilerError> {
         match (left, right) {
-            (RuntimeValue::Integer(l), RuntimeValue::Integer(r)) => Ok(RuntimeValue::Integer(l + r)),
+            (RuntimeValue::Integer(l), RuntimeValue::Integer(r)) => {
+                Ok(RuntimeValue::Integer(l.wrapping_add(r)))
+            }
             (RuntimeValue::Float(l), RuntimeValue::Float(r)) => Ok(RuntimeValue::Float(l + r)),
             (RuntimeValue::Integer(l), RuntimeValue::Float(r)) => Ok(RuntimeValue::Float(l as f64 + r)),
             (RuntimeValue::Float(l), RuntimeValue::Integer(r)) => Ok(RuntimeValue::Float(l + r as f64)),
@@ -237,8 +239,8 @@ impl<W: std::io::Write> Interpreter<W> {
     ) -> Result<RuntimeValue, CompilerError> {
         match (left, right) {
             (RuntimeValue::Integer(l), RuntimeValue::Integer(r)) => match op {
-                "-" => Ok(RuntimeValue::Integer(l - r)),
-                "*" => Ok(RuntimeValue::Integer(l * r)),
+                "-" => Ok(RuntimeValue::Integer(l.wrapping_sub(r))),
+                "*" => Ok(RuntimeValue::Integer(l.wrapping_mul(r))),
                 _ => unreachable!(),
             },
             (RuntimeValue::Float(l), RuntimeValue::Float(r)) => match op {
@@ -281,8 +283,8 @@ impl<W: std::io::Write> Interpreter<W> {
                     return Err(CompilerError::DivisionByZero { line, column });
                 }
                 match op {
-                    "/" => Ok(RuntimeValue::Integer(l / r)),
-                    "%" => Ok(RuntimeValue::Integer(l % r)),
+                    "/" => Ok(RuntimeValue::Integer(l.wrapping_div(r))),
+                    "%" => Ok(RuntimeValue::Integer(l.wrapping_rem(r))),
                     _ => unreachable!(),
                 }
             }

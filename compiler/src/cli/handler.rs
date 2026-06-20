@@ -41,7 +41,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
     let path = Path::new(file_path);
 
     // Phase 1: Read source file.
-    println!("Reading {file_path}...\n");
+    eprintln!("Reading {file_path}...\n");
 
     let source = source::read_source(path).map_err(|e| format!("{e}"))?;
 
