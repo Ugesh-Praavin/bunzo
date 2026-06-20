@@ -40,7 +40,14 @@ use crate::lexer::{Token, TokenKind};
 /// # Errors
 ///
 /// Returns a [`CompilerError`] on the first syntax error encountered.
-pub fn parse(tokens: Vec<Token>) -> Result<Program, CompilerError> {
+pub fn parse(mut tokens: Vec<Token>) -> Result<Program, CompilerError> {
+    // Be defensive: ensure the stream terminates with EOF to avoid panics when
+    // parsing token streams not produced by `lexer::tokenize`.
+    if tokens.last().map(|t| &t.kind) != Some(&TokenKind::Eof) {
+        let (line, column) = tokens.last().map(|t| (t.line, t.column)).unwrap_or((1, 1));
+        tokens.push(Token::new(TokenKind::Eof, "", line, column));
+    }
+
     let mut parser = Parser::new(tokens);
     parser.parse_program()
 }
