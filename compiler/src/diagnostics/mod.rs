@@ -2,8 +2,8 @@
 //!
 //! This module defines structured error types for the Bunzo compiler.
 //! Every compiler error carries an error code (e.g. `BZ0001`) and a
-//! human-readable message, following the diagnostic format described
-//! in the Bunzo architecture documentation.
+//! human-readable message with source location, following the diagnostic
+//! format described in the Bunzo architecture documentation.
 
 use std::fmt;
 use std::path::PathBuf;
@@ -12,10 +12,13 @@ use std::path::PathBuf;
 ///
 /// Each variant maps to a specific error code:
 ///
-/// | Code     | Variant        | Description              |
-/// |----------|----------------|--------------------------|
-/// | `BZ0001` | `FileNotFound` | Source file does not exist |
-/// | `BZ0002` | `Io`           | General I/O failure       |
+/// | Code     | Variant                | Description                        |
+/// |----------|------------------------|------------------------------------|
+/// | `BZ0001` | `FileNotFound`         | Source file does not exist          |
+/// | `BZ0002` | `Io`                   | General I/O failure                |
+/// | `BZ0003` | `UnexpectedCharacter`  | Unrecognized character in source   |
+/// | `BZ0004` | `UnterminatedString`   | String literal missing closing `"` |
+/// | `BZ0005` | `UnterminatedComment`  | Block comment missing closing `*/` |
 #[derive(Debug)]
 pub enum CompilerError {
     /// The requested source file was not found on disk.
@@ -23,6 +26,32 @@ pub enum CompilerError {
 
     /// A general I/O error occurred while reading a source file.
     Io(std::io::Error),
+
+    /// An unrecognized character was encountered during lexing.
+    UnexpectedCharacter {
+        /// The unexpected character.
+        character: char,
+        /// The 1-based line number where the character was found.
+        line: usize,
+        /// The 1-based column number where the character was found.
+        column: usize,
+    },
+
+    /// A string literal is missing its closing double-quote.
+    UnterminatedString {
+        /// The 1-based line number of the opening `"`.
+        line: usize,
+        /// The 1-based column number of the opening `"`.
+        column: usize,
+    },
+
+    /// A block comment (`/* ... */`) is missing its closing delimiter.
+    UnterminatedComment {
+        /// The 1-based line number of the opening `/*`.
+        line: usize,
+        /// The 1-based column number of the opening `/*`.
+        column: usize,
+    },
 }
 
 impl fmt::Display for CompilerError {
@@ -38,6 +67,24 @@ impl fmt::Display for CompilerError {
             CompilerError::Io(err) => {
                 write!(f, "error[BZ0002]\n\nI/O error:\n{err}")
             }
+            CompilerError::UnexpectedCharacter { character, line, column } => {
+                write!(
+                    f,
+                    "error[BZ0003]\n\nUnexpected character: '{character}'\n  --> line {line}, column {column}",
+                )
+            }
+            CompilerError::UnterminatedString { line, column } => {
+                write!(
+                    f,
+                    "error[BZ0004]\n\nUnterminated string literal\n  --> line {line}, column {column}\n\nHint: add a closing '\"' to complete the string.",
+                )
+            }
+            CompilerError::UnterminatedComment { line, column } => {
+                write!(
+                    f,
+                    "error[BZ0005]\n\nUnterminated block comment\n  --> line {line}, column {column}\n\nHint: add '*/' to close the comment.",
+                )
+            }
         }
     }
 }
@@ -45,8 +92,8 @@ impl fmt::Display for CompilerError {
 impl std::error::Error for CompilerError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            CompilerError::FileNotFound(_) => None,
             CompilerError::Io(err) => Some(err),
+            _ => None,
         }
     }
 }
@@ -73,5 +120,40 @@ mod tests {
 
         assert!(message.contains("BZ0002"), "should contain error code");
         assert!(message.contains("access denied"), "should contain cause");
+    }
+
+    #[test]
+    fn display_unexpected_character() {
+        let err = CompilerError::UnexpectedCharacter {
+            character: '@',
+            line: 5,
+            column: 12,
+        };
+        let message = format!("{err}");
+
+        assert!(message.contains("BZ0003"), "should contain error code");
+        assert!(message.contains('@'), "should contain the character");
+        assert!(message.contains("line 5"), "should contain line number");
+        assert!(message.contains("column 12"), "should contain column number");
+    }
+
+    #[test]
+    fn display_unterminated_string() {
+        let err = CompilerError::UnterminatedString { line: 3, column: 8 };
+        let message = format!("{err}");
+
+        assert!(message.contains("BZ0004"), "should contain error code");
+        assert!(message.contains("line 3"), "should contain line number");
+        assert!(message.contains("Hint"), "should contain a fix suggestion");
+    }
+
+    #[test]
+    fn display_unterminated_comment() {
+        let err = CompilerError::UnterminatedComment { line: 1, column: 1 };
+        let message = format!("{err}");
+
+        assert!(message.contains("BZ0005"), "should contain error code");
+        assert!(message.contains("line 1"), "should contain line number");
+        assert!(message.contains("*/"), "should suggest closing delimiter");
     }
 }

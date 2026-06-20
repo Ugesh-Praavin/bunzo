@@ -2,10 +2,12 @@
 //!
 //! This module handles argument parsing, subcommand dispatch, and
 //! user-facing output for the `bzc` binary. All file-reading logic
-//! is delegated to the [`crate::source`] module.
+//! is delegated to the [`crate::source`] module, and tokenization
+//! is delegated to the [`crate::lexer`] module.
 
 use std::path::Path;
 
+use crate::lexer;
 use crate::source;
 
 /// Usage message printed when the user provides invalid arguments.
@@ -38,15 +40,23 @@ pub fn run(args: &[String]) -> Result<(), String> {
 
     let path = Path::new(file_path);
 
+    // Phase 1: Read source file.
     println!("Reading {file_path}...\n");
 
-    match source::read_source(path) {
-        Ok(contents) => {
-            println!("{contents}");
-            Ok(())
-        }
-        Err(err) => Err(format!("{err}")),
+    let source = source::read_source(path).map_err(|e| format!("{e}"))?;
+
+    // Phase 2: Tokenize source.
+    let tokens = lexer::tokenize(&source).map_err(|e| format!("{e}"))?;
+
+    // Print token stream for verification.
+    for token in &tokens {
+        println!(
+            "[{}:{}]\t{:<20}\t{:?}",
+            token.line, token.column, format!("{:?}", token.kind), token.lexeme,
+        );
     }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -92,5 +102,21 @@ mod tests {
 
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("BZ0001"));
+    }
+
+    #[test]
+    fn run_valid_source_file() {
+        let dir = std::env::temp_dir();
+        let file_path = dir.join("bzc_test_cli_run.bz");
+
+        std::fs::write(&file_path, "let x = 42").expect("failed to write temp file");
+
+        let args = make_args(&["bzc", "run", file_path.to_str().unwrap()]);
+        let result = run(&args);
+
+        assert!(result.is_ok(), "should succeed: {result:?}");
+
+        // Clean up.
+        let _ = std::fs::remove_file(&file_path);
     }
 }
