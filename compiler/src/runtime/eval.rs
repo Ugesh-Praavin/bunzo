@@ -99,7 +99,7 @@ impl<W: std::io::Write> Interpreter<W> {
                 let val = self.evaluate_expression(operand)?;
                 match operator {
                     UnaryOperator::Negate => match val {
-                        RuntimeValue::Integer(v) => Ok(RuntimeValue::Integer(-v)),
+                        RuntimeValue::Integer(v) => Ok(RuntimeValue::Integer(v.wrapping_neg())),
                         RuntimeValue::Float(v) => Ok(RuntimeValue::Float(-v)),
                         other => Err(CompilerError::TypeMismatch {
                             operation: "unary negation '-'".to_string(),
