@@ -21,8 +21,9 @@ pub struct Program {
 
 /// A single statement in a Bunzo program.
 ///
-/// Each variant carries source location (line/column) for error reporting
-/// in downstream compiler stages.
+/// Declarations and `print` statements carry source location (line/column) for
+/// downstream error reporting. For expression statements, use the inner
+/// expression's location.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     /// `let name = initializer` — mutable variable declaration.
