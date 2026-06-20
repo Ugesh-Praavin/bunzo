@@ -41,7 +41,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
     let path = Path::new(file_path);
 
     // Phase 1: Read source file.
-    println!("Reading {file_path}...\n");
+    eprintln!("Reading {file_path}...\n");
 
     let source = source::read_source(path).map_err(|e| format!("{e}"))?;
 
@@ -51,8 +51,8 @@ pub fn run(args: &[String]) -> Result<(), String> {
     // Phase 3: Parse tokens into an AST.
     let program = crate::parser::parse(tokens).map_err(|e| format!("{e}"))?;
 
-    // Print AST for verification.
-    println!("{:#?}", program);
+    // Phase 4: Interpret the AST.
+    crate::runtime::execute(program).map_err(|e| format!("{e}"))?;
 
     Ok(())
 }
