@@ -5,7 +5,7 @@
 
 pub mod parser;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub use parser::parse;
 
