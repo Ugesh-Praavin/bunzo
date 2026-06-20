@@ -1,0 +1,6 @@
+const PI = 3.14159;
+const GREETING = "Welcome to Bunzo";
+
+print GREETING;
+print "PI is approximately:";
+print PI;

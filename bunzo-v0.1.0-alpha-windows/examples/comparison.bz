@@ -1,0 +1,14 @@
+var x = 10;
+var y = 20;
+
+print "Is x less than y?";
+print x < y;
+
+print "Is x greater than y?";
+print x > y;
+
+print "Is x equal to 10?";
+print x == 10;
+
+print "Is y not equal to 20?";
+print y != 20;

@@ -1,0 +1,14 @@
+var a = 10
+var b = 5
+
+print ("Addition:")
+print (a + b)
+
+print ("Subtraction:")
+print (a - b)
+
+print ("Multiplication:")
+print (a * b)
+
+print ("Division:")
+print (a / b)

@@ -1,0 +1,7 @@
+var name = "Bunzo";
+var version = 0.1;
+
+print "Language:";
+print name;
+print "Version:";
+print version;
