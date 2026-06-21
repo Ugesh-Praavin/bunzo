@@ -4,11 +4,12 @@
 //! literals, binary/unary expressions, operator precedence, grouping,
 //! multi-statement programs, error cases, and edge cases.
 
-use crate::ast::*;
-use crate::diagnostics::CompilerError;
-use crate::lexer;
+#![allow(clippy::approx_constant)]
+use bzc::ast::*;
+use bzc::diagnostics::CompilerError;
+use bzc::lexer;
 
-use super::parse;
+use bzc::parser::parse;
 
 // ── Test Helpers ──────────────────────────────────────────────────────────
 
@@ -21,7 +22,10 @@ fn parse_source(source: &str) -> Result<Program, CompilerError> {
 /// Parses source and returns the first statement (panics if none).
 fn first_stmt(source: &str) -> Statement {
     let program = parse_source(source).unwrap_or_else(|e| panic!("parse failed: {e}"));
-    assert!(!program.statements.is_empty(), "expected at least one statement");
+    assert!(
+        !program.statements.is_empty(),
+        "expected at least one statement"
+    );
     program.statements.into_iter().next().unwrap()
 }
 
@@ -54,9 +58,14 @@ fn assert_parse_error(source: &str, expected_code: &str) {
 fn let_integer() {
     let stmt = first_stmt("let x = 42");
     match stmt {
-        Statement::LetDeclaration { name, initializer, .. } => {
+        Statement::LetDeclaration {
+            name, initializer, ..
+        } => {
             assert_eq!(name, "x");
-            assert!(matches!(initializer, Expression::IntegerLiteral { value: 42, .. }));
+            assert!(matches!(
+                initializer,
+                Expression::IntegerLiteral { value: 42, .. }
+            ));
         }
         other => panic!("expected LetDeclaration, got {other:?}"),
     }
@@ -66,7 +75,9 @@ fn let_integer() {
 fn let_string() {
     let stmt = first_stmt("let name = \"Bunzo\"");
     match stmt {
-        Statement::LetDeclaration { name, initializer, .. } => {
+        Statement::LetDeclaration {
+            name, initializer, ..
+        } => {
             assert_eq!(name, "name");
             match initializer {
                 Expression::StringLiteral { value, .. } => assert_eq!(value, "Bunzo"),
@@ -81,7 +92,9 @@ fn let_string() {
 fn let_float() {
     let stmt = first_stmt("let price = 99.99");
     match stmt {
-        Statement::LetDeclaration { name, initializer, .. } => {
+        Statement::LetDeclaration {
+            name, initializer, ..
+        } => {
             assert_eq!(name, "price");
             assert!(matches!(initializer, Expression::FloatLiteral { .. }));
         }
@@ -93,9 +106,14 @@ fn let_float() {
 fn let_boolean() {
     let stmt = first_stmt("let active = true");
     match stmt {
-        Statement::LetDeclaration { name, initializer, .. } => {
+        Statement::LetDeclaration {
+            name, initializer, ..
+        } => {
             assert_eq!(name, "active");
-            assert!(matches!(initializer, Expression::BooleanLiteral { value: true, .. }));
+            assert!(matches!(
+                initializer,
+                Expression::BooleanLiteral { value: true, .. }
+            ));
         }
         other => panic!("expected LetDeclaration, got {other:?}"),
     }
@@ -105,9 +123,17 @@ fn let_boolean() {
 fn let_with_expression() {
     let stmt = first_stmt("let sum = a + b");
     match stmt {
-        Statement::LetDeclaration { name, initializer, .. } => {
+        Statement::LetDeclaration {
+            name, initializer, ..
+        } => {
             assert_eq!(name, "sum");
-            assert!(matches!(initializer, Expression::BinaryOp { operator: BinaryOperator::Add, .. }));
+            assert!(matches!(
+                initializer,
+                Expression::BinaryOp {
+                    operator: BinaryOperator::Add,
+                    ..
+                }
+            ));
         }
         other => panic!("expected LetDeclaration, got {other:?}"),
     }
@@ -121,9 +147,14 @@ fn let_with_expression() {
 fn const_integer() {
     let stmt = first_stmt("const MAX = 100");
     match stmt {
-        Statement::ConstDeclaration { name, initializer, .. } => {
+        Statement::ConstDeclaration {
+            name, initializer, ..
+        } => {
             assert_eq!(name, "MAX");
-            assert!(matches!(initializer, Expression::IntegerLiteral { value: 100, .. }));
+            assert!(matches!(
+                initializer,
+                Expression::IntegerLiteral { value: 100, .. }
+            ));
         }
         other => panic!("expected ConstDeclaration, got {other:?}"),
     }
@@ -133,7 +164,9 @@ fn const_integer() {
 fn const_float() {
     let stmt = first_stmt("const PI = 3.14");
     match stmt {
-        Statement::ConstDeclaration { name, initializer, .. } => {
+        Statement::ConstDeclaration {
+            name, initializer, ..
+        } => {
             assert_eq!(name, "PI");
             assert!(matches!(initializer, Expression::FloatLiteral { .. }));
         }
@@ -145,7 +178,9 @@ fn const_float() {
 fn const_null() {
     let stmt = first_stmt("const NOTHING = null");
     match stmt {
-        Statement::ConstDeclaration { name, initializer, .. } => {
+        Statement::ConstDeclaration {
+            name, initializer, ..
+        } => {
             assert_eq!(name, "NOTHING");
             assert!(matches!(initializer, Expression::NullLiteral { .. }));
         }
@@ -161,12 +196,10 @@ fn const_null() {
 fn print_string() {
     let stmt = first_stmt("print(\"Hello\")");
     match stmt {
-        Statement::PrintStatement { argument, .. } => {
-            match argument {
-                Expression::StringLiteral { value, .. } => assert_eq!(value, "Hello"),
-                other => panic!("expected StringLiteral, got {other:?}"),
-            }
-        }
+        Statement::PrintStatement { argument, .. } => match argument {
+            Expression::StringLiteral { value, .. } => assert_eq!(value, "Hello"),
+            other => panic!("expected StringLiteral, got {other:?}"),
+        },
         other => panic!("expected PrintStatement, got {other:?}"),
     }
 }
@@ -176,7 +209,10 @@ fn print_integer() {
     let stmt = first_stmt("print(42)");
     match stmt {
         Statement::PrintStatement { argument, .. } => {
-            assert!(matches!(argument, Expression::IntegerLiteral { value: 42, .. }));
+            assert!(matches!(
+                argument,
+                Expression::IntegerLiteral { value: 42, .. }
+            ));
         }
         other => panic!("expected PrintStatement, got {other:?}"),
     }
@@ -186,12 +222,10 @@ fn print_integer() {
 fn print_identifier() {
     let stmt = first_stmt("print(x)");
     match stmt {
-        Statement::PrintStatement { argument, .. } => {
-            match argument {
-                Expression::Identifier { name, .. } => assert_eq!(name, "x"),
-                other => panic!("expected Identifier, got {other:?}"),
-            }
-        }
+        Statement::PrintStatement { argument, .. } => match argument {
+            Expression::Identifier { name, .. } => assert_eq!(name, "x"),
+            other => panic!("expected Identifier, got {other:?}"),
+        },
         other => panic!("expected PrintStatement, got {other:?}"),
     }
 }
@@ -201,7 +235,13 @@ fn print_expression() {
     let stmt = first_stmt("print(x + 1)");
     match stmt {
         Statement::PrintStatement { argument, .. } => {
-            assert!(matches!(argument, Expression::BinaryOp { operator: BinaryOperator::Add, .. }));
+            assert!(matches!(
+                argument,
+                Expression::BinaryOp {
+                    operator: BinaryOperator::Add,
+                    ..
+                }
+            ));
         }
         other => panic!("expected PrintStatement, got {other:?}"),
     }
@@ -212,7 +252,10 @@ fn print_boolean() {
     let stmt = first_stmt("print(false)");
     match stmt {
         Statement::PrintStatement { argument, .. } => {
-            assert!(matches!(argument, Expression::BooleanLiteral { value: false, .. }));
+            assert!(matches!(
+                argument,
+                Expression::BooleanLiteral { value: false, .. }
+            ));
         }
         other => panic!("expected PrintStatement, got {other:?}"),
     }
@@ -251,13 +294,19 @@ fn literal_string() {
 #[test]
 fn literal_true() {
     let expr = first_expr("true");
-    assert!(matches!(expr, Expression::BooleanLiteral { value: true, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BooleanLiteral { value: true, .. }
+    ));
 }
 
 #[test]
 fn literal_false() {
     let expr = first_expr("false");
-    assert!(matches!(expr, Expression::BooleanLiteral { value: false, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BooleanLiteral { value: false, .. }
+    ));
 }
 
 #[test]
@@ -295,31 +344,61 @@ fn identifier_underscore() {
 #[test]
 fn binop_add() {
     let expr = first_expr("1 + 2");
-    assert!(matches!(expr, Expression::BinaryOp { operator: BinaryOperator::Add, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BinaryOp {
+            operator: BinaryOperator::Add,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn binop_subtract() {
     let expr = first_expr("5 - 3");
-    assert!(matches!(expr, Expression::BinaryOp { operator: BinaryOperator::Subtract, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BinaryOp {
+            operator: BinaryOperator::Subtract,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn binop_multiply() {
     let expr = first_expr("4 * 2");
-    assert!(matches!(expr, Expression::BinaryOp { operator: BinaryOperator::Multiply, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BinaryOp {
+            operator: BinaryOperator::Multiply,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn binop_divide() {
     let expr = first_expr("10 / 3");
-    assert!(matches!(expr, Expression::BinaryOp { operator: BinaryOperator::Divide, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BinaryOp {
+            operator: BinaryOperator::Divide,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn binop_modulo() {
     let expr = first_expr("10 % 3");
-    assert!(matches!(expr, Expression::BinaryOp { operator: BinaryOperator::Modulo, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BinaryOp {
+            operator: BinaryOperator::Modulo,
+            ..
+        }
+    ));
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -329,37 +408,73 @@ fn binop_modulo() {
 #[test]
 fn binop_equal() {
     let expr = first_expr("a == b");
-    assert!(matches!(expr, Expression::BinaryOp { operator: BinaryOperator::Equal, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BinaryOp {
+            operator: BinaryOperator::Equal,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn binop_not_equal() {
     let expr = first_expr("a != b");
-    assert!(matches!(expr, Expression::BinaryOp { operator: BinaryOperator::NotEqual, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BinaryOp {
+            operator: BinaryOperator::NotEqual,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn binop_less() {
     let expr = first_expr("a < b");
-    assert!(matches!(expr, Expression::BinaryOp { operator: BinaryOperator::Less, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BinaryOp {
+            operator: BinaryOperator::Less,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn binop_greater() {
     let expr = first_expr("a > b");
-    assert!(matches!(expr, Expression::BinaryOp { operator: BinaryOperator::Greater, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BinaryOp {
+            operator: BinaryOperator::Greater,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn binop_less_equal() {
     let expr = first_expr("a <= b");
-    assert!(matches!(expr, Expression::BinaryOp { operator: BinaryOperator::LessEqual, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BinaryOp {
+            operator: BinaryOperator::LessEqual,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn binop_greater_equal() {
     let expr = first_expr("a >= b");
-    assert!(matches!(expr, Expression::BinaryOp { operator: BinaryOperator::GreaterEqual, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BinaryOp {
+            operator: BinaryOperator::GreaterEqual,
+            ..
+        }
+    ));
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -369,13 +484,25 @@ fn binop_greater_equal() {
 #[test]
 fn binop_and() {
     let expr = first_expr("a && b");
-    assert!(matches!(expr, Expression::BinaryOp { operator: BinaryOperator::And, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BinaryOp {
+            operator: BinaryOperator::And,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn binop_or() {
     let expr = first_expr("a || b");
-    assert!(matches!(expr, Expression::BinaryOp { operator: BinaryOperator::Or, .. }));
+    assert!(matches!(
+        expr,
+        Expression::BinaryOp {
+            operator: BinaryOperator::Or,
+            ..
+        }
+    ));
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -386,7 +513,9 @@ fn binop_or() {
 fn unary_negate() {
     let expr = first_expr("-x");
     match expr {
-        Expression::UnaryOp { operator, operand, .. } => {
+        Expression::UnaryOp {
+            operator, operand, ..
+        } => {
             assert_eq!(operator, UnaryOperator::Negate);
             assert!(matches!(*operand, Expression::Identifier { .. }));
         }
@@ -398,7 +527,9 @@ fn unary_negate() {
 fn unary_not() {
     let expr = first_expr("!flag");
     match expr {
-        Expression::UnaryOp { operator, operand, .. } => {
+        Expression::UnaryOp {
+            operator, operand, ..
+        } => {
             assert_eq!(operator, UnaryOperator::LogicalNot);
             assert!(matches!(*operand, Expression::Identifier { .. }));
         }
@@ -413,8 +544,18 @@ fn unary_double_negate() {
     // Actually, the lexer produces MinusMinus for "--". So "- - x" works.
     let expr = first_expr("- - x");
     match expr {
-        Expression::UnaryOp { operator: UnaryOperator::Negate, operand, .. } => {
-            assert!(matches!(*operand, Expression::UnaryOp { operator: UnaryOperator::Negate, .. }));
+        Expression::UnaryOp {
+            operator: UnaryOperator::Negate,
+            operand,
+            ..
+        } => {
+            assert!(matches!(
+                *operand,
+                Expression::UnaryOp {
+                    operator: UnaryOperator::Negate,
+                    ..
+                }
+            ));
         }
         other => panic!("expected nested UnaryOp, got {other:?}"),
     }
@@ -424,8 +565,18 @@ fn unary_double_negate() {
 fn unary_double_not() {
     let expr = first_expr("!!b");
     match expr {
-        Expression::UnaryOp { operator: UnaryOperator::LogicalNot, operand, .. } => {
-            assert!(matches!(*operand, Expression::UnaryOp { operator: UnaryOperator::LogicalNot, .. }));
+        Expression::UnaryOp {
+            operator: UnaryOperator::LogicalNot,
+            operand,
+            ..
+        } => {
+            assert!(matches!(
+                *operand,
+                Expression::UnaryOp {
+                    operator: UnaryOperator::LogicalNot,
+                    ..
+                }
+            ));
         }
         other => panic!("expected nested UnaryOp, got {other:?}"),
     }
@@ -440,8 +591,18 @@ fn unary_double_not() {
 fn precedence_mul_before_add() {
     let expr = first_expr("1 + 2 * 3");
     match expr {
-        Expression::BinaryOp { operator: BinaryOperator::Add, right, .. } => {
-            assert!(matches!(*right, Expression::BinaryOp { operator: BinaryOperator::Multiply, .. }));
+        Expression::BinaryOp {
+            operator: BinaryOperator::Add,
+            right,
+            ..
+        } => {
+            assert!(matches!(
+                *right,
+                Expression::BinaryOp {
+                    operator: BinaryOperator::Multiply,
+                    ..
+                }
+            ));
         }
         other => panic!("expected Add at top, got {other:?}"),
     }
@@ -452,8 +613,18 @@ fn precedence_mul_before_add() {
 fn precedence_mul_before_add_reversed() {
     let expr = first_expr("2 * 3 + 1");
     match expr {
-        Expression::BinaryOp { operator: BinaryOperator::Add, left, .. } => {
-            assert!(matches!(*left, Expression::BinaryOp { operator: BinaryOperator::Multiply, .. }));
+        Expression::BinaryOp {
+            operator: BinaryOperator::Add,
+            left,
+            ..
+        } => {
+            assert!(matches!(
+                *left,
+                Expression::BinaryOp {
+                    operator: BinaryOperator::Multiply,
+                    ..
+                }
+            ));
         }
         other => panic!("expected Add at top, got {other:?}"),
     }
@@ -464,8 +635,18 @@ fn precedence_mul_before_add_reversed() {
 fn precedence_comparison_before_equality() {
     let expr = first_expr("a < b == c");
     match expr {
-        Expression::BinaryOp { operator: BinaryOperator::Equal, left, .. } => {
-            assert!(matches!(*left, Expression::BinaryOp { operator: BinaryOperator::Less, .. }));
+        Expression::BinaryOp {
+            operator: BinaryOperator::Equal,
+            left,
+            ..
+        } => {
+            assert!(matches!(
+                *left,
+                Expression::BinaryOp {
+                    operator: BinaryOperator::Less,
+                    ..
+                }
+            ));
         }
         other => panic!("expected Equal at top, got {other:?}"),
     }
@@ -476,8 +657,18 @@ fn precedence_comparison_before_equality() {
 fn precedence_equality_before_and() {
     let expr = first_expr("a == b && c");
     match expr {
-        Expression::BinaryOp { operator: BinaryOperator::And, left, .. } => {
-            assert!(matches!(*left, Expression::BinaryOp { operator: BinaryOperator::Equal, .. }));
+        Expression::BinaryOp {
+            operator: BinaryOperator::And,
+            left,
+            ..
+        } => {
+            assert!(matches!(
+                *left,
+                Expression::BinaryOp {
+                    operator: BinaryOperator::Equal,
+                    ..
+                }
+            ));
         }
         other => panic!("expected And at top, got {other:?}"),
     }
@@ -488,8 +679,18 @@ fn precedence_equality_before_and() {
 fn precedence_and_before_or() {
     let expr = first_expr("a && b || c");
     match expr {
-        Expression::BinaryOp { operator: BinaryOperator::Or, left, .. } => {
-            assert!(matches!(*left, Expression::BinaryOp { operator: BinaryOperator::And, .. }));
+        Expression::BinaryOp {
+            operator: BinaryOperator::Or,
+            left,
+            ..
+        } => {
+            assert!(matches!(
+                *left,
+                Expression::BinaryOp {
+                    operator: BinaryOperator::And,
+                    ..
+                }
+            ));
         }
         other => panic!("expected Or at top, got {other:?}"),
     }
@@ -500,9 +701,23 @@ fn precedence_and_before_or() {
 fn precedence_left_associativity() {
     let expr = first_expr("1 + 2 + 3");
     match expr {
-        Expression::BinaryOp { operator: BinaryOperator::Add, left, right, .. } => {
-            assert!(matches!(*left, Expression::BinaryOp { operator: BinaryOperator::Add, .. }));
-            assert!(matches!(*right, Expression::IntegerLiteral { value: 3, .. }));
+        Expression::BinaryOp {
+            operator: BinaryOperator::Add,
+            left,
+            right,
+            ..
+        } => {
+            assert!(matches!(
+                *left,
+                Expression::BinaryOp {
+                    operator: BinaryOperator::Add,
+                    ..
+                }
+            ));
+            assert!(matches!(
+                *right,
+                Expression::IntegerLiteral { value: 3, .. }
+            ));
         }
         other => panic!("expected left-associative Add, got {other:?}"),
     }
@@ -517,7 +732,10 @@ fn grouping_simple() {
     let expr = first_expr("(42)");
     match expr {
         Expression::Grouping { expression, .. } => {
-            assert!(matches!(*expression, Expression::IntegerLiteral { value: 42, .. }));
+            assert!(matches!(
+                *expression,
+                Expression::IntegerLiteral { value: 42, .. }
+            ));
         }
         other => panic!("expected Grouping, got {other:?}"),
     }
@@ -528,7 +746,11 @@ fn grouping_simple() {
 fn grouping_overrides_precedence() {
     let expr = first_expr("(1 + 2) * 3");
     match expr {
-        Expression::BinaryOp { operator: BinaryOperator::Multiply, left, .. } => {
+        Expression::BinaryOp {
+            operator: BinaryOperator::Multiply,
+            left,
+            ..
+        } => {
             assert!(matches!(*left, Expression::Grouping { .. }));
         }
         other => panic!("expected Multiply at top, got {other:?}"),
@@ -550,7 +772,12 @@ fn grouping_nested() {
 fn grouping_complex() {
     let expr = first_expr("(a + b) * (c - d)");
     match expr {
-        Expression::BinaryOp { operator: BinaryOperator::Multiply, left, right, .. } => {
+        Expression::BinaryOp {
+            operator: BinaryOperator::Multiply,
+            left,
+            right,
+            ..
+        } => {
             assert!(matches!(*left, Expression::Grouping { .. }));
             assert!(matches!(*right, Expression::Grouping { .. }));
         }
@@ -566,8 +793,14 @@ fn grouping_complex() {
 fn multi_let_and_print() {
     let program = parse_source("let x = 42\nprint(x)").unwrap();
     assert_eq!(program.statements.len(), 2);
-    assert!(matches!(program.statements[0], Statement::LetDeclaration { .. }));
-    assert!(matches!(program.statements[1], Statement::PrintStatement { .. }));
+    assert!(matches!(
+        program.statements[0],
+        Statement::LetDeclaration { .. }
+    ));
+    assert!(matches!(
+        program.statements[1],
+        Statement::PrintStatement { .. }
+    ));
 }
 
 #[test]
@@ -583,9 +816,18 @@ fn multi_several_lets() {
 fn multi_let_const_print() {
     let program = parse_source("let x = 10\nconst Y = 20\nprint(x + Y)").unwrap();
     assert_eq!(program.statements.len(), 3);
-    assert!(matches!(program.statements[0], Statement::LetDeclaration { .. }));
-    assert!(matches!(program.statements[1], Statement::ConstDeclaration { .. }));
-    assert!(matches!(program.statements[2], Statement::PrintStatement { .. }));
+    assert!(matches!(
+        program.statements[0],
+        Statement::LetDeclaration { .. }
+    ));
+    assert!(matches!(
+        program.statements[1],
+        Statement::ConstDeclaration { .. }
+    ));
+    assert!(matches!(
+        program.statements[2],
+        Statement::PrintStatement { .. }
+    ));
 }
 
 #[test]
@@ -667,26 +909,25 @@ fn edge_only_comments() {
 fn edge_single_literal() {
     let program = parse_source("42").unwrap();
     assert_eq!(program.statements.len(), 1);
-    assert!(matches!(program.statements[0], Statement::ExpressionStatement { .. }));
+    assert!(matches!(
+        program.statements[0],
+        Statement::ExpressionStatement { .. }
+    ));
 }
 
 #[test]
 fn edge_deeply_nested_grouping() {
     let expr = first_expr("(((1 + 2)))");
     match expr {
-        Expression::Grouping { expression, .. } => {
-            match *expression {
+        Expression::Grouping { expression, .. } => match *expression {
+            Expression::Grouping { expression, .. } => match *expression {
                 Expression::Grouping { expression, .. } => {
-                    match *expression {
-                        Expression::Grouping { expression, .. } => {
-                            assert!(matches!(*expression, Expression::BinaryOp { .. }));
-                        }
-                        other => panic!("expected inner Grouping, got {other:?}"),
-                    }
+                    assert!(matches!(*expression, Expression::BinaryOp { .. }));
                 }
-                other => panic!("expected middle Grouping, got {other:?}"),
-            }
-        }
+                other => panic!("expected inner Grouping, got {other:?}"),
+            },
+            other => panic!("expected middle Grouping, got {other:?}"),
+        },
         other => panic!("expected outer Grouping, got {other:?}"),
     }
 }

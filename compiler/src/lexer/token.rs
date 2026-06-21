@@ -190,6 +190,8 @@ pub enum TokenKind {
     Dot,
     /// `..` — range operator.
     DotDot,
+    /// `..=` — inclusive range operator.
+    DotDotEqual,
     /// `;`
     Semicolon,
     /// `:`

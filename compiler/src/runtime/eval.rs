@@ -428,6 +428,13 @@ impl<W: std::io::Write> Interpreter<W> {
 
     // ── Expression evaluation ─────────────────────────────────────────
 
+    pub fn evaluate_expression(
+        &mut self,
+        expr: &Expression,
+    ) -> Result<RuntimeValue, CompilerError> {
+        self.eval_expr(expr)
+    }
+
     pub(crate) fn eval_expr(&mut self, expr: &Expression) -> Result<RuntimeValue, CompilerError> {
         match expr {
             Expression::IntegerLiteral { value, .. } => Ok(RuntimeValue::Integer(*value)),

@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.4.0] - 2026-06-21
+
+### Added
+* `while` loops (repeated execution based on condition)
+* `for in` loops with `start..end` range evaluation
+* `break` and `continue` control flow operations inside loop blocks
+* `AssignStatement` support (`var = value` variable reassignments)
+* Validation and runtime errors for range bounds and condition types
+
+## [v0.3.0] - 2026-06-21
+
+### Added
+* `if` and `else` statements for conditional execution
+* `else if` chaining
+* Block scoping in runtime environments and static analyzer
+
+## [v0.2.0] - 2026-06-21
+
+### Added
+* Static Semantic Analyzer framework
+* Scope resolution for variables and constants
+* Detection of undefined variables and duplicate variable declarations in the same scope
+
 ## v0.1.0-alpha - 2026-06-20
 
 This is the first public alpha release of the Bunzo programming language.
@@ -27,9 +50,6 @@ This is the first public alpha release of the Bunzo programming language.
 
 ### Known Limitations
 The following features are not yet implemented:
-* Semantic Analysis
 * Type Checker
 * Functions
-* Loops
-* Conditionals
 * Standard Library
