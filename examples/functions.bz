@@ -1,0 +1,58 @@
+// Phase 1 — Functions
+// Demonstrates: parameters, return values, recursion, function calls, scope
+
+func add(a: int, b: int) -> int {
+    return a + b
+}
+
+func multiply(a: int, b: int) -> int {
+    return a * b
+}
+
+func greet(name: string) {
+    print("Hello, " + name + "!")
+}
+
+// Recursion: factorial
+func factorial(n: int) -> int {
+    if n <= 1 {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+
+// Recursion: fibonacci
+func fibonacci(n: int) -> int {
+    if n <= 1 {
+        return n
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+print("--- Functions ---")
+
+let sum = add(10, 20)
+print("10 + 20 =")
+print(sum)
+
+let product = multiply(6, 7)
+print("6 * 7 =")
+print(product)
+
+greet("Bunzo")
+
+print("5! =")
+print(factorial(5))
+
+print("fib(10) =")
+print(fibonacci(10))
+
+// Closures over outer scope
+let base = 100
+
+func add_base(x: int) -> int {
+    return x + base
+}
+
+print("add_base(42) =")
+print(add_base(42))

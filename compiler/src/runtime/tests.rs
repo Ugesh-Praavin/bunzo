@@ -12,7 +12,7 @@ use super::value::RuntimeValue;
 // Helper to evaluate a single expression
 fn eval_expr(expr: Expression) -> Result<RuntimeValue, CompilerError> {
     let mut interpreter = Interpreter::new(Vec::new());
-    interpreter.evaluate_expression(&expr)
+    interpreter.eval_expr(&expr)
 }
 
 // Helper to execute a sequence of statements and get stdout

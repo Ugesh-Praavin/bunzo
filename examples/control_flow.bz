@@ -1,0 +1,92 @@
+// Control Flow
+// Demonstrates: if/else if/else, while, for, break, continue, assignments
+
+print("--- if / else if / else ---")
+
+let score = 85
+
+if score >= 90 {
+    print("Grade: A")
+} else if score >= 80 {
+    print("Grade: B")
+} else if score >= 70 {
+    print("Grade: C")
+} else {
+    print("Grade: F")
+}
+
+print("")
+print("--- while loop ---")
+
+let n = 1
+let total = 0
+while n <= 10 {
+    total = total + n
+    n = n + 1
+}
+print("Sum 1..10 =")
+print(total)
+
+print("")
+print("--- for loop ---")
+
+for i in 1..6 {
+    print(i)
+}
+
+print("")
+print("--- break ---")
+
+for i in 0..100 {
+    if i == 5 {
+        break
+    }
+    print(i)
+}
+
+print("")
+print("--- continue (skip evens) ---")
+
+for i in 0..10 {
+    if i % 2 == 0 {
+        continue
+    }
+    print(i)
+}
+
+print("")
+print("--- nested loops ---")
+
+for i in 1..4 {
+    for j in 1..4 {
+        // print i * j
+        print(i * j)
+    }
+}
+
+print("")
+print("--- compound assignment via reassignment ---")
+
+let x = 10
+x = x + 5
+print("x after += 5:")
+print(x)
+
+x = x * 2
+print("x after *= 2:")
+print(x)
+
+print("")
+print("--- logical operators ---")
+
+let a = true
+let b = false
+
+print("a && b:")
+print(a && b)
+
+print("a || b:")
+print(a || b)
+
+print("!a:")
+print(!a)
