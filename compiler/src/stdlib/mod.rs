@@ -25,7 +25,11 @@ pub fn build_module(name: &str) -> Option<RuntimeValue> {
 
 pub(crate) fn make_builtin(
     name: &str,
-    func: fn(Vec<RuntimeValue>, usize, usize) -> Result<RuntimeValue, crate::diagnostics::CompilerError>,
+    func: fn(
+        Vec<RuntimeValue>,
+        usize,
+        usize,
+    ) -> Result<RuntimeValue, crate::diagnostics::CompilerError>,
 ) -> RuntimeValue {
     RuntimeValue::Builtin {
         name: name.to_string(),

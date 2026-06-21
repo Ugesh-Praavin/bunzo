@@ -13,4 +13,5 @@ pub mod runtime;
 pub mod semantic;
 pub mod source;
 pub mod stdlib;
+pub mod typechecker;
 pub mod utils;

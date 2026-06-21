@@ -60,7 +60,6 @@ class BankAccount {
 print("--- Classes ---")
 
 let c = Counter()
-c.init()
 print("Initial counter:")
 print(c.get())
 
@@ -80,8 +79,7 @@ print(c.get())
 
 print("")
 
-let account = BankAccount()
-account.init("Bart", 1000)
+let account = BankAccount("Bart", 1000)
 account.print_statement()
 
 account.deposit(500)

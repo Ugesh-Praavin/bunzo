@@ -163,7 +163,12 @@ fn row_to_map(row: &HashMap<String, RuntimeValue>) -> RuntimeValue {
     RuntimeValue::Map(Rc::new(RefCell::new(row.clone())))
 }
 
-fn execute_sql(state: &mut DbState, sql: &str, line: usize, column: usize) -> Result<i64, CompilerError> {
+fn execute_sql(
+    state: &mut DbState,
+    sql: &str,
+    line: usize,
+    column: usize,
+) -> Result<i64, CompilerError> {
     let sql_trim = sql.trim().trim_end_matches(';');
     let upper = sql_trim.to_uppercase();
 
@@ -173,9 +178,7 @@ fn execute_sql(state: &mut DbState, sql: &str, line: usize, column: usize) -> Re
             .split_once('(')
             .ok_or_else(|| runtime_err("invalid CREATE TABLE syntax", line, column))?;
         let name = name.trim().to_string();
-        let cols_inner = cols_part
-            .trim_end_matches(')')
-            .trim();
+        let cols_inner = cols_part.trim_end_matches(')').trim();
         let columns: Vec<String> = split_csv_list(cols_inner)
             .into_iter()
             .map(|c| c.split_whitespace().next().unwrap_or("").to_string())
@@ -234,7 +237,11 @@ fn execute_sql(state: &mut DbState, sql: &str, line: usize, column: usize) -> Re
         };
 
         if columns.len() != values.len() {
-            return Err(runtime_err("INSERT column/value count mismatch", line, column));
+            return Err(runtime_err(
+                "INSERT column/value count mismatch",
+                line,
+                column,
+            ));
         }
 
         let mut row = HashMap::new();
@@ -299,10 +306,17 @@ fn execute_sql(state: &mut DbState, sql: &str, line: usize, column: usize) -> Re
         for row in &mut table.rows {
             let matches = if let Some(w) = where_part {
                 let (wcol, wval) = {
-                    let eq = w.find('=').ok_or_else(|| runtime_err("invalid WHERE", line, column))?;
-                    (w[..eq].trim().to_string(), parse_sql_value(w[eq + 1..].trim()))
+                    let eq = w
+                        .find('=')
+                        .ok_or_else(|| runtime_err("invalid WHERE", line, column))?;
+                    (
+                        w[..eq].trim().to_string(),
+                        parse_sql_value(w[eq + 1..].trim()),
+                    )
                 };
-                row.get(&wcol).map(|v| values_match(v, &wval)).unwrap_or(false)
+                row.get(&wcol)
+                    .map(|v| values_match(v, &wval))
+                    .unwrap_or(false)
             } else {
                 true
             };
@@ -330,7 +344,11 @@ fn query_sql(
     let sql_trim = sql.trim().trim_end_matches(';');
     let upper = sql_trim.to_uppercase();
     if !upper.starts_with("SELECT ") {
-        return Err(runtime_err("query() expects a SELECT statement", line, column));
+        return Err(runtime_err(
+            "query() expects a SELECT statement",
+            line,
+            column,
+        ));
     }
 
     let rest = sql_trim[7..].trim();
@@ -417,7 +435,11 @@ fn save_state(state: &DbState) -> Result<(), CompilerError> {
     Ok(())
 }
 
-fn db_open(args: Vec<RuntimeValue>, line: usize, column: usize) -> Result<RuntimeValue, CompilerError> {
+fn db_open(
+    args: Vec<RuntimeValue>,
+    line: usize,
+    column: usize,
+) -> Result<RuntimeValue, CompilerError> {
     if args.len() != 1 {
         return Err(CompilerError::ArityMismatch {
             name: "db.open".into(),
@@ -443,7 +465,11 @@ fn db_open(args: Vec<RuntimeValue>, line: usize, column: usize) -> Result<Runtim
     Ok(RuntimeValue::DbConnection(Arc::new(Mutex::new(state))))
 }
 
-fn db_execute(args: Vec<RuntimeValue>, line: usize, column: usize) -> Result<RuntimeValue, CompilerError> {
+fn db_execute(
+    args: Vec<RuntimeValue>,
+    line: usize,
+    column: usize,
+) -> Result<RuntimeValue, CompilerError> {
     let conn = require_connection(&args, "db.execute", line, column)?;
     let sql = require_sql(&args, "db.execute", line, column)?;
     let mut guard = conn.lock().unwrap();
@@ -451,7 +477,11 @@ fn db_execute(args: Vec<RuntimeValue>, line: usize, column: usize) -> Result<Run
     Ok(RuntimeValue::Integer(rows))
 }
 
-fn db_query(args: Vec<RuntimeValue>, line: usize, column: usize) -> Result<RuntimeValue, CompilerError> {
+fn db_query(
+    args: Vec<RuntimeValue>,
+    line: usize,
+    column: usize,
+) -> Result<RuntimeValue, CompilerError> {
     let conn = require_connection(&args, "db.query", line, column)?;
     let sql = require_sql(&args, "db.query", line, column)?;
     let guard = conn.lock().unwrap();
@@ -459,7 +489,11 @@ fn db_query(args: Vec<RuntimeValue>, line: usize, column: usize) -> Result<Runti
     Ok(RuntimeValue::Array(Rc::new(RefCell::new(rows))))
 }
 
-fn db_close(args: Vec<RuntimeValue>, line: usize, column: usize) -> Result<RuntimeValue, CompilerError> {
+fn db_close(
+    args: Vec<RuntimeValue>,
+    line: usize,
+    column: usize,
+) -> Result<RuntimeValue, CompilerError> {
     let conn = require_connection(&args, "db.close", line, column)?;
     let guard = conn.lock().unwrap();
     save_state(&guard)?;

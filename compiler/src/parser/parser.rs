@@ -150,7 +150,12 @@ impl Parser {
         self.expect(TokenKind::Equal, "'='")?;
         let value = self.parse_expression()?;
 
-        Ok(Statement::Assignment { name, value, line, column })
+        Ok(Statement::Assignment {
+            name,
+            value,
+            line,
+            column,
+        })
     }
 
     /// Parses `if condition { ... } ( else ( if ... | { ... } ) )?`.
@@ -192,7 +197,12 @@ impl Parser {
         let condition = self.with_no_struct_literal(|p| p.parse_expression())?;
         let body = self.parse_block()?;
 
-        Ok(Statement::WhileStatement { condition, body, line, column })
+        Ok(Statement::WhileStatement {
+            condition,
+            body,
+            line,
+            column,
+        })
     }
 
     /// Parses `for name in start..end { ... }`.
@@ -212,19 +222,32 @@ impl Parser {
 
         let body = self.parse_block()?;
 
-        Ok(Statement::ForStatement { variable, start, end, body, line, column })
+        Ok(Statement::ForStatement {
+            variable,
+            start,
+            end,
+            body,
+            line,
+            column,
+        })
     }
 
     /// Parses `break`.
     fn parse_break_statement(&mut self) -> Result<Statement, CompilerError> {
         let keyword = self.advance();
-        Ok(Statement::BreakStatement { line: keyword.line, column: keyword.column })
+        Ok(Statement::BreakStatement {
+            line: keyword.line,
+            column: keyword.column,
+        })
     }
 
     /// Parses `continue`.
     fn parse_continue_statement(&mut self) -> Result<Statement, CompilerError> {
         let keyword = self.advance();
-        Ok(Statement::ContinueStatement { line: keyword.line, column: keyword.column })
+        Ok(Statement::ContinueStatement {
+            line: keyword.line,
+            column: keyword.column,
+        })
     }
 
     /// Parses `struct Name { field: type ... }`.
@@ -263,7 +286,12 @@ impl Parser {
         }
         self.expect(TokenKind::RightBrace, "'}'")?;
 
-        Ok(Statement::StructDeclaration { name, fields, line, column })
+        Ok(Statement::StructDeclaration {
+            name,
+            fields,
+            line,
+            column,
+        })
     }
 
     /// Parses `[abstract] class Name [extends Parent] [implements A, B] { ... }`.
@@ -368,7 +396,12 @@ impl Parser {
 
         self.expect(TokenKind::RightBrace, "'}'")?;
 
-        Ok(Statement::InterfaceDeclaration { name, methods, line, column })
+        Ok(Statement::InterfaceDeclaration {
+            name,
+            methods,
+            line,
+            column,
+        })
     }
 
     /// Parses an optional `public` / `private` prefix (defaults to public).
@@ -385,7 +418,10 @@ impl Parser {
     }
 
     /// Parses `name: type` with the given visibility.
-    fn parse_field_declaration(&mut self, visibility: Visibility) -> Result<Parameter, CompilerError> {
+    fn parse_field_declaration(
+        &mut self,
+        visibility: Visibility,
+    ) -> Result<Parameter, CompilerError> {
         let field_name_token = self.expect(TokenKind::Identifier, "field name")?;
         self.expect(TokenKind::Colon, "':'")?;
         let type_token = self.expect(TokenKind::Identifier, "field type")?;
@@ -556,7 +592,12 @@ impl Parser {
             None
         };
 
-        Ok(Statement::ImportDeclaration { name, path, line, column })
+        Ok(Statement::ImportDeclaration {
+            name,
+            path,
+            line,
+            column,
+        })
     }
 
     /// Parses `export name`.
@@ -639,15 +680,13 @@ impl Parser {
             let eq = self.advance(); // consume '='
             let value = self.parse_expression()?;
             match expression {
-                Expression::FieldAccess { object, field, .. } => {
-                    Ok(Statement::FieldAssignment {
-                        object: *object,
-                        field,
-                        value,
-                        line: eq.line,
-                        column: eq.column,
-                    })
-                }
+                Expression::FieldAccess { object, field, .. } => Ok(Statement::FieldAssignment {
+                    object: *object,
+                    field,
+                    value,
+                    line: eq.line,
+                    column: eq.column,
+                }),
                 _ => Err(CompilerError::UnexpectedToken {
                     expected: "assignable field expression".to_string(),
                     found: describe_token(&eq),
@@ -726,7 +765,11 @@ impl Parser {
             None
         };
 
-        Ok(Statement::ReturnStatement { value, line, column })
+        Ok(Statement::ReturnStatement {
+            value,
+            line,
+            column,
+        })
     }
 
     /// Parses a `{ statement* }` block, used for function bodies.
@@ -756,7 +799,7 @@ impl Parser {
                 | TokenKind::False
                 | TokenKind::Null
                 | TokenKind::Identifier
-                |             TokenKind::LeftParen
+                | TokenKind::LeftParen
                 | TokenKind::Bang
                 | TokenKind::Minus
                 | TokenKind::Super
@@ -1019,7 +1062,12 @@ impl Parser {
 
         self.expect(TokenKind::RightBrace, "'}'")?;
 
-        Ok(Expression::StructLiteral { name, fields, line, column })
+        Ok(Expression::StructLiteral {
+            name,
+            fields,
+            line,
+            column,
+        })
     }
 
     /// Parses a primary expression (literals, identifiers, grouping).
@@ -1029,14 +1077,16 @@ impl Parser {
         match token.kind {
             TokenKind::IntegerLiteral => {
                 self.advance();
-                let value: i64 = token.lexeme.parse().map_err(|_| {
-                    CompilerError::UnexpectedToken {
-                        expected: "valid integer".to_string(),
-                        found: describe_token(&token),
-                        line: token.line,
-                        column: token.column,
-                    }
-                })?;
+                let value: i64 =
+                    token
+                        .lexeme
+                        .parse()
+                        .map_err(|_| CompilerError::UnexpectedToken {
+                            expected: "valid integer".to_string(),
+                            found: describe_token(&token),
+                            line: token.line,
+                            column: token.column,
+                        })?;
                 Ok(Expression::IntegerLiteral {
                     value,
                     line: token.line,
@@ -1046,14 +1096,16 @@ impl Parser {
 
             TokenKind::FloatLiteral => {
                 self.advance();
-                let value: f64 = token.lexeme.parse().map_err(|_| {
-                    CompilerError::UnexpectedToken {
-                        expected: "valid float".to_string(),
-                        found: describe_token(&token),
-                        line: token.line,
-                        column: token.column,
-                    }
-                })?;
+                let value: f64 =
+                    token
+                        .lexeme
+                        .parse()
+                        .map_err(|_| CompilerError::UnexpectedToken {
+                            expected: "valid float".to_string(),
+                            found: describe_token(&token),
+                            line: token.line,
+                            column: token.column,
+                        })?;
                 Ok(Expression::FloatLiteral {
                     value,
                     line: token.line,
@@ -1211,11 +1263,7 @@ impl Parser {
 
     /// Consumes the current token if it matches `kind`, otherwise
     /// returns a [`CompilerError::UnexpectedToken`].
-    fn expect(
-        &mut self,
-        kind: TokenKind,
-        expected: &str,
-    ) -> Result<Token, CompilerError> {
+    fn expect(&mut self, kind: TokenKind, expected: &str) -> Result<Token, CompilerError> {
         if self.check(&kind) {
             Ok(self.advance())
         } else {

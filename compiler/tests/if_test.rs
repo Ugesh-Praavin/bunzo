@@ -135,10 +135,7 @@ fn parse_nested_if_in_then_branch() {
     let prog = parse_source("if true { if false { } }").unwrap();
     match &prog.statements[0] {
         Statement::IfStatement { then_branch, .. } => {
-            assert!(matches!(
-                then_branch[0],
-                Statement::IfStatement { .. }
-            ));
+            assert!(matches!(then_branch[0], Statement::IfStatement { .. }));
         }
         other => panic!("expected nested IfStatement, got {other:?}"),
     }

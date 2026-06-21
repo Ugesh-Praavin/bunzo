@@ -4,8 +4,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::diagnostics::CompilerError;
 use super::value::RuntimeValue;
+use crate::diagnostics::CompilerError;
 
 /// A single variable binding.
 #[derive(Debug, Clone, PartialEq)]
@@ -25,16 +25,25 @@ pub struct Environment {
 
 impl Environment {
     pub fn new() -> Self {
-        Self { parent: None, bindings: HashMap::new() }
+        Self {
+            parent: None,
+            bindings: HashMap::new(),
+        }
     }
 
     pub fn with_parent(parent: Rc<RefCell<Self>>) -> Self {
-        Self { parent: Some(parent), bindings: HashMap::new() }
+        Self {
+            parent: Some(parent),
+            bindings: HashMap::new(),
+        }
     }
 
     /// Build a shallow snapshot (no parent) for thread spawning.
     pub fn snapshot(env: &Environment) -> Environment {
-        Environment { parent: None, bindings: env.bindings.clone() }
+        Environment {
+            parent: None,
+            bindings: env.bindings.clone(),
+        }
     }
 
     /// Define a variable in this immediate scope.
@@ -49,7 +58,14 @@ impl Environment {
         if self.bindings.contains_key(&name) {
             return Err(CompilerError::DuplicateDeclaration { name, line, column });
         }
-        self.bindings.insert(name, VariableBinding { value, is_const, exported: false });
+        self.bindings.insert(
+            name,
+            VariableBinding {
+                value,
+                is_const,
+                exported: false,
+            },
+        );
         Ok(())
     }
 
@@ -70,14 +86,23 @@ impl Environment {
     }
 
     /// Get a value, traversing parent scopes.
-    pub fn get(&self, name: &str, line: usize, column: usize) -> Result<RuntimeValue, CompilerError> {
+    pub fn get(
+        &self,
+        name: &str,
+        line: usize,
+        column: usize,
+    ) -> Result<RuntimeValue, CompilerError> {
         if let Some(b) = self.bindings.get(name) {
             return Ok(b.value.clone());
         }
         if let Some(parent) = &self.parent {
             return parent.borrow().get(name, line, column);
         }
-        Err(CompilerError::UndefinedVariable { name: name.to_string(), line, column })
+        Err(CompilerError::UndefinedVariable {
+            name: name.to_string(),
+            line,
+            column,
+        })
     }
 
     /// Get a value only from this scope (no parent traversal) — used by module export.
@@ -120,5 +145,7 @@ impl Environment {
 }
 
 impl Default for Environment {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }

@@ -54,6 +54,9 @@ pub fn run(args: &[String]) -> Result<(), String> {
     // Phase 5: Semantic Analysis.
     crate::semantic::analyze(&program).map_err(|e| format!("{e}"))?;
 
+    // Phase 10: Type Checking.
+    crate::typechecker::check(&program).map_err(|e| format!("{e}"))?;
+
     // Phase 4: Interpret the AST.
     crate::runtime::execute(program).map_err(|e| format!("{e}"))?;
 

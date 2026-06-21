@@ -6,11 +6,11 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use super::environment::Environment;
+use super::value::{BzClass, BzFunction, RuntimeValue};
 use crate::ast::{BinaryOperator, Expression, Program, Statement, UnaryOperator, Visibility};
 use crate::diagnostics::CompilerError;
 use crate::stdlib::{build_module, register_builtins};
-use super::environment::Environment;
-use super::value::{BzClass, BzFunction, RuntimeValue};
 
 // ── Control-flow signals ──────────────────────────────────────────────────
 
@@ -71,7 +71,11 @@ impl<W: std::io::Write> Interpreter<W> {
             if let Some(signal) = self.exec_stmt(stmt)? {
                 match signal {
                     Signal::Throw(val, line, col) => {
-                        return Err(CompilerError::Thrown { value: val, line, column: col });
+                        return Err(CompilerError::Thrown {
+                            value: val,
+                            line,
+                            column: col,
+                        });
                     }
                     Signal::Return(_) => {
                         return Err(CompilerError::ReturnOutsideFunction { line: 0, column: 0 });
@@ -87,18 +91,28 @@ impl<W: std::io::Write> Interpreter<W> {
 
     fn exec_stmt(&mut self, stmt: &Statement) -> StmtResult {
         match stmt {
-            Statement::LetDeclaration { name, initializer, line, column } => {
+            Statement::LetDeclaration {
+                name,
+                initializer,
+                line,
+                column,
+            } => {
                 let value = self.eval_expr(initializer)?;
-                self.environment.borrow_mut().define(
-                    name.clone(), value, false, *line, *column,
-                )?;
+                self.environment
+                    .borrow_mut()
+                    .define(name.clone(), value, false, *line, *column)?;
                 Ok(None)
             }
-            Statement::ConstDeclaration { name, initializer, line, column } => {
+            Statement::ConstDeclaration {
+                name,
+                initializer,
+                line,
+                column,
+            } => {
                 let value = self.eval_expr(initializer)?;
-                self.environment.borrow_mut().define(
-                    name.clone(), value, true, *line, *column,
-                )?;
+                self.environment
+                    .borrow_mut()
+                    .define(name.clone(), value, true, *line, *column)?;
                 Ok(None)
             }
             Statement::PrintStatement { argument, .. } => {
@@ -110,7 +124,16 @@ impl<W: std::io::Write> Interpreter<W> {
                 self.eval_expr(expression)?;
                 Ok(None)
             }
-            Statement::FunctionDeclaration { name, params, body, line, column, visibility, is_abstract, .. } => {
+            Statement::FunctionDeclaration {
+                name,
+                params,
+                body,
+                line,
+                column,
+                visibility,
+                is_abstract,
+                ..
+            } => {
                 if *is_abstract {
                     return Ok(None);
                 }
@@ -123,9 +146,9 @@ impl<W: std::io::Write> Interpreter<W> {
                     visibility: *visibility,
                     is_abstract: false,
                 }));
-                self.environment.borrow_mut().define(
-                    name.clone(), func, true, *line, *column,
-                )?;
+                self.environment
+                    .borrow_mut()
+                    .define(name.clone(), func, true, *line, *column)?;
                 Ok(None)
             }
             Statement::ReturnStatement { value, .. } => {
@@ -135,14 +158,25 @@ impl<W: std::io::Write> Interpreter<W> {
                 };
                 Ok(Some(Signal::Return(val)))
             }
-            Statement::Assignment { name, value, line, column } => {
+            Statement::Assignment {
+                name,
+                value,
+                line,
+                column,
+            } => {
                 let val = self.eval_expr(value)?;
-                self.environment.borrow_mut().assign(
-                    name.clone(), val, *line, *column,
-                )?;
+                self.environment
+                    .borrow_mut()
+                    .assign(name.clone(), val, *line, *column)?;
                 Ok(None)
             }
-            Statement::IfStatement { condition, then_branch, else_branch, line, column } => {
+            Statement::IfStatement {
+                condition,
+                then_branch,
+                else_branch,
+                line,
+                column,
+            } => {
                 let cond = self.eval_expr(condition)?;
                 let cond_bool = require_bool(cond, "if condition", *line, *column)?;
                 let branch = if cond_bool {
@@ -151,58 +185,84 @@ impl<W: std::io::Write> Interpreter<W> {
                     else_branch.as_deref()
                 };
                 if let Some(stmts) = branch {
-                    let child = Rc::new(RefCell::new(
-                        Environment::with_parent(self.environment.clone()),
-                    ));
+                    let child = Rc::new(RefCell::new(Environment::with_parent(
+                        self.environment.clone(),
+                    )));
                     return self.exec_block_in_env(stmts, child);
                 }
                 Ok(None)
             }
-            Statement::WhileStatement { condition, body, line, column } => {
+            Statement::WhileStatement {
+                condition,
+                body,
+                line,
+                column,
+            } => {
                 loop {
                     let cond = self.eval_expr(condition)?;
                     let cond_bool = require_bool(cond, "while condition", *line, *column)?;
-                    if !cond_bool { break; }
-                    let child = Rc::new(RefCell::new(
-                        Environment::with_parent(self.environment.clone()),
-                    ));
+                    if !cond_bool {
+                        break;
+                    }
+                    let child = Rc::new(RefCell::new(Environment::with_parent(
+                        self.environment.clone(),
+                    )));
                     match self.exec_block_in_env(body, child)? {
                         Some(Signal::Break) => break,
                         Some(Signal::Continue) => continue,
                         other => {
-                            if other.is_some() { return Ok(other); }
+                            if other.is_some() {
+                                return Ok(other);
+                            }
                         }
                     }
                 }
                 Ok(None)
             }
-            Statement::ForStatement { variable, start, end, body, line, column } => {
+            Statement::ForStatement {
+                variable,
+                start,
+                end,
+                body,
+                line,
+                column,
+            } => {
                 let start_val = self.eval_expr(start)?;
-                let end_val   = self.eval_expr(end)?;
+                let end_val = self.eval_expr(end)?;
                 let (start_i, end_i) = match (start_val, end_val) {
                     (RuntimeValue::Integer(s), RuntimeValue::Integer(e)) => (s, e),
-                    _ => return Err(CompilerError::TypeMismatch {
-                        operation: "for range".to_string(),
-                        expected:  "Integer".to_string(),
-                        found:     "non-integer".to_string(),
-                        line: *line, column: *column,
-                    }),
+                    _ => {
+                        return Err(CompilerError::TypeMismatch {
+                            operation: "for range".to_string(),
+                            expected: "Integer".to_string(),
+                            found: "non-integer".to_string(),
+                            line: *line,
+                            column: *column,
+                        });
+                    }
                 };
                 let mut i = start_i;
                 while i < end_i {
-                    let child = Rc::new(RefCell::new(
-                        Environment::with_parent(self.environment.clone()),
-                    ));
+                    let child = Rc::new(RefCell::new(Environment::with_parent(
+                        self.environment.clone(),
+                    )));
                     child.borrow_mut().define(
                         variable.clone(),
                         RuntimeValue::Integer(i),
-                        false, *line, *column,
+                        false,
+                        *line,
+                        *column,
                     )?;
                     match self.exec_block_in_env(body, child)? {
                         Some(Signal::Break) => break,
-                        Some(Signal::Continue) => { i += 1; continue; }
+                        Some(Signal::Continue) => {
+                            i += 1;
+                            continue;
+                        }
                         other => {
-                            if other.is_some() { return Ok(other); }
+                            if other.is_some() {
+                                return Ok(other);
+                            }
                         }
                     }
                     i += 1;
@@ -211,7 +271,12 @@ impl<W: std::io::Write> Interpreter<W> {
             }
             Statement::BreakStatement { .. } => Ok(Some(Signal::Break)),
             Statement::ContinueStatement { .. } => Ok(Some(Signal::Continue)),
-            Statement::StructDeclaration { name, fields, line, column } => {
+            Statement::StructDeclaration {
+                name,
+                fields,
+                line,
+                column,
+            } => {
                 // Struct declarations don't produce a runtime value; they
                 // are validated by semantic analysis. Register a sentinel
                 // so that field-list metadata can be checked at construction.
@@ -226,9 +291,10 @@ impl<W: std::io::Write> Interpreter<W> {
                     visibility: Visibility::Public,
                     is_abstract: false,
                 }));
-                self.environment.borrow_mut().define(
-                    format!("__struct__{name}"), func, true, *line, *column,
-                ).unwrap_or(()); // ignore if re-defined in tests
+                self.environment
+                    .borrow_mut()
+                    .define(format!("__struct__{name}"), func, true, *line, *column)
+                    .unwrap_or(()); // ignore if re-defined in tests
                 Ok(None)
             }
             Statement::ClassDeclaration {
@@ -301,16 +367,27 @@ impl<W: std::io::Write> Interpreter<W> {
                     field_visibility,
                     methods: method_map,
                 }));
-                self.environment.borrow_mut().define(
-                    name.clone(), class, true, *line, *column,
-                )?;
+                self.environment
+                    .borrow_mut()
+                    .define(name.clone(), class, true, *line, *column)?;
                 Ok(None)
             }
-            Statement::FieldAssignment { object, field, value, line, column } => {
+            Statement::FieldAssignment {
+                object,
+                field,
+                value,
+                line,
+                column,
+            } => {
                 let obj_val = self.eval_expr(object)?;
                 let new_val = self.eval_expr(value)?;
                 match &obj_val {
-                    RuntimeValue::Object { class_name, field_visibility, fields, .. } => {
+                    RuntimeValue::Object {
+                        class_name,
+                        field_visibility,
+                        fields,
+                        ..
+                    } => {
                         if matches!(field_visibility.get(field), Some(Visibility::Private)) {
                             if self.method_class.as_deref() != Some(class_name.as_str()) {
                                 return Err(CompilerError::PrivateFieldAccess {
@@ -327,54 +404,84 @@ impl<W: std::io::Write> Interpreter<W> {
                         // structs are value types — need to locate and update the var
                         // We fall back to re-assigning through the identifier in `object`.
                         drop(obj_val);
-                        return self.exec_field_assign_struct(object, field, new_val, *line, *column);
+                        return self
+                            .exec_field_assign_struct(object, field, new_val, *line, *column);
                     }
-                    other => return Err(CompilerError::TypeMismatch {
-                        operation: "field assignment".to_string(),
-                        expected:  "Object or Struct".to_string(),
-                        found:     other.type_name().to_string(),
-                        line: *line, column: *column,
-                    }),
+                    other => {
+                        return Err(CompilerError::TypeMismatch {
+                            operation: "field assignment".to_string(),
+                            expected: "Object or Struct".to_string(),
+                            found: other.type_name().to_string(),
+                            line: *line,
+                            column: *column,
+                        });
+                    }
                 }
                 Ok(None)
             }
-            Statement::TryCatch { try_block, catch_var, catch_block, line, column } => {
-                let child = Rc::new(RefCell::new(
-                    Environment::with_parent(self.environment.clone()),
-                ));
+            Statement::TryCatch {
+                try_block,
+                catch_var,
+                catch_block,
+                line,
+                column,
+            } => {
+                let child = Rc::new(RefCell::new(Environment::with_parent(
+                    self.environment.clone(),
+                )));
                 let result = self.exec_block_in_env(try_block, child);
                 match result {
-                    Ok(Some(Signal::Throw(val, _, _))) | Err(CompilerError::Thrown { value: val, .. }) => {
-                        let catch_env = Rc::new(RefCell::new(
-                            Environment::with_parent(self.environment.clone()),
-                        ));
+                    Ok(Some(Signal::Throw(val, _, _)))
+                    | Err(CompilerError::Thrown { value: val, .. }) => {
+                        let catch_env = Rc::new(RefCell::new(Environment::with_parent(
+                            self.environment.clone(),
+                        )));
                         catch_env.borrow_mut().define(
-                            catch_var.clone(), val, false, *line, *column,
+                            catch_var.clone(),
+                            val,
+                            false,
+                            *line,
+                            *column,
                         )?;
                         self.exec_block_in_env(catch_block, catch_env)
                     }
                     other => other,
                 }
             }
-            Statement::Throw { value, line, column } => {
+            Statement::Throw {
+                value,
+                line,
+                column,
+            } => {
                 let val = self.eval_expr(value)?;
                 Ok(Some(Signal::Throw(val, *line, *column)))
             }
             // ── Phase 4+ statements ───────────────────────────────────
-            Statement::ImportDeclaration { name, path, line, column } => {
-                self.exec_import(name, path.as_deref(), *line, *column)
-            }
+            Statement::ImportDeclaration {
+                name,
+                path,
+                line,
+                column,
+            } => self.exec_import(name, path.as_deref(), *line, *column),
             Statement::ExportDeclaration { .. } => Ok(None), // export is metadata; no runtime effect
-            Statement::EnumDeclaration { name, variants, line, column } => {
-                self.exec_enum_declaration(name, variants, *line, *column)
-            }
-            Statement::MatchStatement { subject, arms, line, column } => {
-                self.exec_match(subject, arms, *line, *column)
-            }
+            Statement::EnumDeclaration {
+                name,
+                variants,
+                line,
+                column,
+            } => self.exec_enum_declaration(name, variants, *line, *column),
+            Statement::MatchStatement {
+                subject,
+                arms,
+                line,
+                column,
+            } => self.exec_match(subject, arms, *line, *column),
             Statement::InterfaceDeclaration { .. } => Ok(None), // structural — no runtime value
-            Statement::SpawnStatement { expression, line, column } => {
-                self.exec_spawn(expression, *line, *column)
-            }
+            Statement::SpawnStatement {
+                expression,
+                line,
+                column,
+            } => self.exec_spawn(expression, *line, *column),
         }
     }
 
@@ -414,18 +521,28 @@ impl<W: std::io::Write> Interpreter<W> {
     ) -> StmtResult {
         if let Expression::Identifier { name, .. } = object {
             let current = self.environment.borrow().get(name, line, column)?;
-            if let RuntimeValue::Struct { name: sname, mut fields } = current {
+            if let RuntimeValue::Struct {
+                name: sname,
+                mut fields,
+            } = current
+            {
                 fields.insert(field.to_string(), new_val);
-                let updated = RuntimeValue::Struct { name: sname, fields };
-                self.environment.borrow_mut().assign(name.clone(), updated, line, column)?;
+                let updated = RuntimeValue::Struct {
+                    name: sname,
+                    fields,
+                };
+                self.environment
+                    .borrow_mut()
+                    .assign(name.clone(), updated, line, column)?;
                 return Ok(None);
             }
         }
         Err(CompilerError::TypeMismatch {
             operation: "field assignment".to_string(),
-            expected:  "Struct".to_string(),
-            found:     "other".to_string(),
-            line, column,
+            expected: "Struct".to_string(),
+            found: "other".to_string(),
+            line,
+            column,
         })
     }
 
@@ -441,39 +558,68 @@ impl<W: std::io::Write> Interpreter<W> {
     pub(crate) fn eval_expr(&mut self, expr: &Expression) -> Result<RuntimeValue, CompilerError> {
         match expr {
             Expression::IntegerLiteral { value, .. } => Ok(RuntimeValue::Integer(*value)),
-            Expression::FloatLiteral   { value, .. } => Ok(RuntimeValue::Float(*value)),
-            Expression::StringLiteral  { value, .. } => Ok(RuntimeValue::String(value.clone())),
+            Expression::FloatLiteral { value, .. } => Ok(RuntimeValue::Float(*value)),
+            Expression::StringLiteral { value, .. } => Ok(RuntimeValue::String(value.clone())),
             Expression::BooleanLiteral { value, .. } => Ok(RuntimeValue::Boolean(*value)),
-            Expression::NullLiteral    { .. }        => Ok(RuntimeValue::Null),
+            Expression::NullLiteral { .. } => Ok(RuntimeValue::Null),
             Expression::Identifier { name, line, column } => {
                 self.environment.borrow().get(name, *line, *column)
             }
             Expression::Grouping { expression, .. } => self.eval_expr(expression),
-            Expression::UnaryOp  { operator, operand, line, column } => {
-                self.eval_unary(operator, operand, *line, *column)
-            }
-            Expression::BinaryOp { operator, left, right, line, column } => {
-                self.eval_binary(operator, left, right, *line, *column)
-            }
-            Expression::Call { callee, arguments, line, column } => {
-                self.eval_call(callee, arguments, *line, *column)
-            }
-            Expression::StructLiteral { name, fields, line, column } => {
-                self.eval_struct_literal(name, fields, *line, *column)
-            }
-            Expression::FieldAccess { object, field, line, column } => {
-                self.eval_field_access(object, field, *line, *column)
-            }
+            Expression::UnaryOp {
+                operator,
+                operand,
+                line,
+                column,
+            } => self.eval_unary(operator, operand, *line, *column),
+            Expression::BinaryOp {
+                operator,
+                left,
+                right,
+                line,
+                column,
+            } => self.eval_binary(operator, left, right, *line, *column),
+            Expression::Call {
+                callee,
+                arguments,
+                line,
+                column,
+            } => self.eval_call(callee, arguments, *line, *column),
+            Expression::StructLiteral {
+                name,
+                fields,
+                line,
+                column,
+            } => self.eval_struct_literal(name, fields, *line, *column),
+            Expression::FieldAccess {
+                object,
+                field,
+                line,
+                column,
+            } => self.eval_field_access(object, field, *line, *column),
             // ── Phase 4+ expressions ──────────────────────────────────
             Expression::ArrayLiteral { elements, .. } => {
                 let mut vals = Vec::with_capacity(elements.len());
-                for el in elements { vals.push(self.eval_expr(el)?); }
-                Ok(RuntimeValue::Array(std::rc::Rc::new(std::cell::RefCell::new(vals))))
+                for el in elements {
+                    vals.push(self.eval_expr(el)?);
+                }
+                Ok(RuntimeValue::Array(std::rc::Rc::new(
+                    std::cell::RefCell::new(vals),
+                )))
             }
-            Expression::IndexExpression { object, index, line, column } => {
-                self.eval_index(object, index, *line, *column)
-            }
-            Expression::EnumVariantExpr { enum_name, variant, payload, line, column } => {
+            Expression::IndexExpression {
+                object,
+                index,
+                line,
+                column,
+            } => self.eval_index(object, index, *line, *column),
+            Expression::EnumVariantExpr {
+                enum_name,
+                variant,
+                payload,
+                line: _,
+                column: _,
+            } => {
                 let payload_val = if let Some(p) = payload {
                     Some(Box::new(self.eval_expr(p)?))
                 } else {
@@ -485,7 +631,11 @@ impl<W: std::io::Write> Interpreter<W> {
                     payload: payload_val.map(|b| std::rc::Rc::new(*b)),
                 })
             }
-            Expression::PropagateError { expression, line, column } => {
+            Expression::PropagateError {
+                expression,
+                line,
+                column,
+            } => {
                 // Evaluate inner expression; if it results in a Thrown error, re-propagate.
                 let val = self.eval_expr(expression)?;
                 match val {
@@ -500,34 +650,52 @@ impl<W: std::io::Write> Interpreter<W> {
             Expression::MoveExpr { name, line, column } => {
                 // Get the value and mark the variable as moved (set to Null).
                 let val = self.environment.borrow().get(name, *line, *column)?;
-                self.environment.borrow_mut().assign(name.clone(), RuntimeValue::Moved, *line, *column)?;
+                self.environment.borrow_mut().assign(
+                    name.clone(),
+                    RuntimeValue::Moved,
+                    *line,
+                    *column,
+                )?;
                 Ok(val)
             }
-            Expression::AwaitExpr { expression, line, column } => {
+            Expression::AwaitExpr {
+                expression,
+                line,
+                column,
+            } => {
                 // For channels: recv(). For futures: resolve immediately (no async runtime yet).
                 let val = self.eval_expr(expression)?;
                 match val {
                     RuntimeValue::Channel(ch) => {
-                        let received = ch.lock().unwrap().recv()
-                            .map_err(|_| CompilerError::RuntimeException {
+                        let received = ch.lock().unwrap().recv().map_err(|_| {
+                            CompilerError::RuntimeException {
                                 message: "channel closed".to_string(),
-                                line: *line, column: *column,
-                            })?;
+                                line: *line,
+                                column: *column,
+                            }
+                        })?;
                         Ok(received)
                     }
                     other => Ok(other), // non-channel await is a no-op
                 }
             }
             Expression::SuperExpr { line, column } => {
-                let class_name = self.method_class.clone().ok_or(CompilerError::InvalidSuper {
-                    line: *line,
-                    column: *column,
-                })?;
-                let receiver = self.method_receiver.clone().ok_or(CompilerError::InvalidSuper {
-                    line: *line,
-                    column: *column,
-                })?;
-                let parent_class = self.lookup_class(&class_name, *line, *column)?
+                let class_name = self
+                    .method_class
+                    .clone()
+                    .ok_or(CompilerError::InvalidSuper {
+                        line: *line,
+                        column: *column,
+                    })?;
+                let receiver = self
+                    .method_receiver
+                    .clone()
+                    .ok_or(CompilerError::InvalidSuper {
+                        line: *line,
+                        column: *column,
+                    })?;
+                let parent_class = self
+                    .lookup_class(&class_name, *line, *column)?
                     .parent
                     .clone()
                     .ok_or(CompilerError::RuntimeException {
@@ -556,21 +724,23 @@ impl<W: std::io::Write> Interpreter<W> {
         match op {
             UnaryOperator::Negate => match val {
                 RuntimeValue::Integer(v) => Ok(RuntimeValue::Integer(v.wrapping_neg())),
-                RuntimeValue::Float(v)   => Ok(RuntimeValue::Float(-v)),
+                RuntimeValue::Float(v) => Ok(RuntimeValue::Float(-v)),
                 other => Err(CompilerError::TypeMismatch {
                     operation: "unary negation '-'".to_string(),
-                    expected:  "Integer or Float".to_string(),
-                    found:     other.type_name().to_string(),
-                    line, column,
+                    expected: "Integer or Float".to_string(),
+                    found: other.type_name().to_string(),
+                    line,
+                    column,
                 }),
             },
             UnaryOperator::LogicalNot => match val {
                 RuntimeValue::Boolean(v) => Ok(RuntimeValue::Boolean(!v)),
                 other => Err(CompilerError::TypeMismatch {
                     operation: "logical negation '!'".to_string(),
-                    expected:  "Boolean".to_string(),
-                    found:     other.type_name().to_string(),
-                    line, column,
+                    expected: "Boolean".to_string(),
+                    found: other.type_name().to_string(),
+                    line,
+                    column,
                 }),
             },
         }
@@ -590,7 +760,9 @@ impl<W: std::io::Write> Interpreter<W> {
         if *op == BinaryOperator::And {
             let lv = self.eval_expr(left)?;
             let lb = require_bool(lv, "logical AND '&&'", line, column)?;
-            if !lb { return Ok(RuntimeValue::Boolean(false)); }
+            if !lb {
+                return Ok(RuntimeValue::Boolean(false));
+            }
             let rv = self.eval_expr(right)?;
             let rb = require_bool(rv, "logical AND '&&'", line, column)?;
             return Ok(RuntimeValue::Boolean(rb));
@@ -598,7 +770,9 @@ impl<W: std::io::Write> Interpreter<W> {
         if *op == BinaryOperator::Or {
             let lv = self.eval_expr(left)?;
             let lb = require_bool(lv, "logical OR '||'", line, column)?;
-            if lb { return Ok(RuntimeValue::Boolean(true)); }
+            if lb {
+                return Ok(RuntimeValue::Boolean(true));
+            }
             let rv = self.eval_expr(right)?;
             let rb = require_bool(rv, "logical OR '||'", line, column)?;
             return Ok(RuntimeValue::Boolean(rb));
@@ -608,17 +782,17 @@ impl<W: std::io::Write> Interpreter<W> {
         let rv = self.eval_expr(right)?;
 
         match op {
-            BinaryOperator::Add         => eval_add(lv, rv, line, column),
-            BinaryOperator::Subtract    => eval_arithmetic(lv, rv, "-", line, column),
-            BinaryOperator::Multiply    => eval_arithmetic(lv, rv, "*", line, column),
-            BinaryOperator::Divide      => eval_division(lv, rv, "/", line, column),
-            BinaryOperator::Modulo      => eval_division(lv, rv, "%", line, column),
-            BinaryOperator::Equal       => Ok(RuntimeValue::Boolean(eval_equality(&lv, &rv))),
-            BinaryOperator::NotEqual    => Ok(RuntimeValue::Boolean(!eval_equality(&lv, &rv))),
-            BinaryOperator::Less        => eval_comparison(lv, rv, "<",  line, column),
-            BinaryOperator::Greater     => eval_comparison(lv, rv, ">",  line, column),
-            BinaryOperator::LessEqual   => eval_comparison(lv, rv, "<=", line, column),
-            BinaryOperator::GreaterEqual=> eval_comparison(lv, rv, ">=", line, column),
+            BinaryOperator::Add => eval_add(lv, rv, line, column),
+            BinaryOperator::Subtract => eval_arithmetic(lv, rv, "-", line, column),
+            BinaryOperator::Multiply => eval_arithmetic(lv, rv, "*", line, column),
+            BinaryOperator::Divide => eval_division(lv, rv, "/", line, column),
+            BinaryOperator::Modulo => eval_division(lv, rv, "%", line, column),
+            BinaryOperator::Equal => Ok(RuntimeValue::Boolean(eval_equality(&lv, &rv))),
+            BinaryOperator::NotEqual => Ok(RuntimeValue::Boolean(!eval_equality(&lv, &rv))),
+            BinaryOperator::Less => eval_comparison(lv, rv, "<", line, column),
+            BinaryOperator::Greater => eval_comparison(lv, rv, ">", line, column),
+            BinaryOperator::LessEqual => eval_comparison(lv, rv, "<=", line, column),
+            BinaryOperator::GreaterEqual => eval_comparison(lv, rv, ">=", line, column),
             BinaryOperator::And | BinaryOperator::Or => unreachable!(),
         }
     }
@@ -652,15 +826,11 @@ impl<W: std::io::Write> Interpreter<W> {
         column: usize,
     ) -> Result<RuntimeValue, CompilerError> {
         match callee {
-            RuntimeValue::Function(func) => {
-                self.call_function(func, args, line, column)
-            }
+            RuntimeValue::Function(func) => self.call_function(func, args, line, column),
             RuntimeValue::BoundMethod { receiver, method } => {
                 self.call_bound_method(receiver, method, args, line, column)
             }
-            RuntimeValue::Builtin { func, .. } => {
-                func(args, line, column)
-            }
+            RuntimeValue::Builtin { func, .. } => func(args, line, column),
             RuntimeValue::Class(class) => {
                 if class.is_abstract {
                     return Err(CompilerError::AbstractClassInstantiation {
@@ -706,8 +876,9 @@ impl<W: std::io::Write> Interpreter<W> {
                 Ok(Rc::try_unwrap(receiver).unwrap_or_else(|rc| (*rc).clone()))
             }
             other => Err(CompilerError::NotCallable {
-                found:  format!("{}", other.type_name()),
-                line, column,
+                found: format!("{}", other.type_name()),
+                line,
+                column,
             }),
         }
     }
@@ -721,25 +892,30 @@ impl<W: std::io::Write> Interpreter<W> {
     ) -> Result<RuntimeValue, CompilerError> {
         if func.params.len() != args.len() {
             return Err(CompilerError::ArityMismatch {
-                name:     func.name.clone(),
+                name: func.name.clone(),
                 expected: func.params.len(),
-                found:    args.len(),
-                line, column,
+                found: args.len(),
+                line,
+                column,
             });
         }
         // Build the call environment from the closure.
-        let call_env = Rc::new(RefCell::new(
-            Environment::with_parent(func.closure.clone()),
-        ));
+        let call_env = Rc::new(RefCell::new(Environment::with_parent(func.closure.clone())));
         for (name, val) in func.params.iter().zip(args.into_iter()) {
-            call_env.borrow_mut().define(name.clone(), val, false, line, column)?;
+            call_env
+                .borrow_mut()
+                .define(name.clone(), val, false, line, column)?;
         }
         let previous = std::mem::replace(&mut self.environment, call_env);
         let result = self.exec_block(&func.body);
         self.environment = previous;
         match result? {
             Some(Signal::Return(v)) => Ok(v),
-            Some(Signal::Throw(val, line, col)) => Err(CompilerError::Thrown { value: val, line, column: col }),
+            Some(Signal::Throw(val, line, col)) => Err(CompilerError::Thrown {
+                value: val,
+                line,
+                column: col,
+            }),
             _ => Ok(RuntimeValue::Null),
         }
     }
@@ -754,26 +930,33 @@ impl<W: std::io::Write> Interpreter<W> {
     ) -> Result<RuntimeValue, CompilerError> {
         if method.params.len() != args.len() {
             return Err(CompilerError::ArityMismatch {
-                name:     method.name.clone(),
+                name: method.name.clone(),
                 expected: method.params.len(),
-                found:    args.len(),
-                line, column,
+                found: args.len(),
+                line,
+                column,
             });
         }
-        let call_env = Rc::new(RefCell::new(
-            Environment::with_parent(method.closure.clone()),
-        ));
+        let call_env = Rc::new(RefCell::new(Environment::with_parent(
+            method.closure.clone(),
+        )));
         // Bind `this` to the receiver object.
         call_env.borrow_mut().define(
-            "this".to_string(), (*receiver).clone(), true, line, column,
+            "this".to_string(),
+            (*receiver).clone(),
+            true,
+            line,
+            column,
         )?;
         for (name, val) in method.params.iter().zip(args.into_iter()) {
-            call_env.borrow_mut().define(name.clone(), val, false, line, column)?;
+            call_env
+                .borrow_mut()
+                .define(name.clone(), val, false, line, column)?;
         }
         let previous = std::mem::replace(&mut self.environment, call_env);
         let prev_class = std::mem::replace(&mut self.method_class, method.owner_class.clone());
         let prev_receiver = std::mem::replace(&mut self.method_receiver, Some(receiver.clone()));
-        let result   = self.exec_block(&method.body);
+        let result = self.exec_block(&method.body);
         self.method_receiver = prev_receiver;
         self.method_class = prev_class;
         self.environment = previous;
@@ -782,7 +965,11 @@ impl<W: std::io::Write> Interpreter<W> {
         // in-place.  No flush-back needed.
         match result? {
             Some(Signal::Return(v)) => Ok(v),
-            Some(Signal::Throw(val, ln, col)) => Err(CompilerError::Thrown { value: val, line: ln, column: col }),
+            Some(Signal::Throw(val, ln, col)) => Err(CompilerError::Thrown {
+                value: val,
+                line: ln,
+                column: col,
+            }),
             _ => Ok(RuntimeValue::Null),
         }
     }
@@ -818,7 +1005,10 @@ impl<W: std::io::Write> Interpreter<W> {
     ) -> Result<RuntimeValue, CompilerError> {
         let obj_val = self.eval_expr(object)?;
         match &obj_val {
-            RuntimeValue::SuperHandle { receiver, parent_class } => {
+            RuntimeValue::SuperHandle {
+                receiver,
+                parent_class,
+            } => {
                 let parent = self.lookup_class(parent_class, line, column)?;
                 if let Some(method) = parent.methods.get(field) {
                     return Ok(RuntimeValue::BoundMethod {
@@ -834,13 +1024,23 @@ impl<W: std::io::Write> Interpreter<W> {
                 });
             }
             RuntimeValue::Struct { name, fields } => {
-                fields.get(field).cloned().ok_or_else(|| CompilerError::NoSuchField {
-                    struct_name: name.clone(),
-                    field: field.to_string(),
-                    line, column,
-                })
+                fields
+                    .get(field)
+                    .cloned()
+                    .ok_or_else(|| CompilerError::NoSuchField {
+                        struct_name: name.clone(),
+                        field: field.to_string(),
+                        line,
+                        column,
+                    })
             }
-            RuntimeValue::Object { class_name, fields, methods, field_visibility, .. } => {
+            RuntimeValue::Object {
+                class_name,
+                fields,
+                methods,
+                field_visibility,
+                ..
+            } => {
                 if matches!(field_visibility.get(field), Some(Visibility::Private)) {
                     if self.method_class.as_deref() != Some(class_name.as_str()) {
                         return Err(CompilerError::PrivateFieldAccess {
@@ -864,21 +1064,27 @@ impl<W: std::io::Write> Interpreter<W> {
                 Err(CompilerError::NoSuchField {
                     struct_name: class_name.clone(),
                     field: field.to_string(),
-                    line, column,
+                    line,
+                    column,
                 })
             }
             RuntimeValue::Map(map) => {
-                map.borrow().get(field).cloned().ok_or_else(|| CompilerError::NoSuchField {
-                    struct_name: "Map".to_string(),
-                    field: field.to_string(),
-                    line, column,
-                })
+                map.borrow()
+                    .get(field)
+                    .cloned()
+                    .ok_or_else(|| CompilerError::NoSuchField {
+                        struct_name: "Map".to_string(),
+                        field: field.to_string(),
+                        line,
+                        column,
+                    })
             }
             other => Err(CompilerError::TypeMismatch {
                 operation: "field access '.'".to_string(),
-                expected:  "Struct, Object, Map, or super".to_string(),
-                found:     other.type_name().to_string(),
-                line, column,
+                expected: "Struct, Object, Map, or super".to_string(),
+                found: other.type_name().to_string(),
+                line,
+                column,
             }),
         }
     }
@@ -905,7 +1111,6 @@ impl<W: std::io::Write> Interpreter<W> {
 // ── Phase 4+ helper methods (added inside a second impl block) ────────────
 
 impl<W: std::io::Write> Interpreter<W> {
-
     // ── Index expression ──────────────────────────────────────────────
 
     fn eval_index(
@@ -921,14 +1126,23 @@ impl<W: std::io::Write> Interpreter<W> {
             RuntimeValue::Array(arr) => {
                 let i = match idx {
                     RuntimeValue::Integer(n) => n,
-                    other => return Err(CompilerError::InvalidIndex {
-                        found: other.type_name().to_string(), line, column,
-                    }),
+                    other => {
+                        return Err(CompilerError::InvalidIndex {
+                            found: other.type_name().to_string(),
+                            line,
+                            column,
+                        });
+                    }
                 };
                 let borrow = arr.borrow();
                 let len = borrow.len();
                 if i < 0 || i as usize >= len {
-                    return Err(CompilerError::IndexOutOfBounds { index: i, length: len, line, column });
+                    return Err(CompilerError::IndexOutOfBounds {
+                        index: i,
+                        length: len,
+                        line,
+                        column,
+                    });
                 }
                 Ok(borrow[i as usize].clone())
             }
@@ -936,21 +1150,30 @@ impl<W: std::io::Write> Interpreter<W> {
                 let key = match idx {
                     RuntimeValue::String(s) => s,
                     RuntimeValue::Integer(n) => n.to_string(),
-                    other => return Err(CompilerError::InvalidIndex {
-                        found: other.type_name().to_string(), line, column,
-                    }),
+                    other => {
+                        return Err(CompilerError::InvalidIndex {
+                            found: other.type_name().to_string(),
+                            line,
+                            column,
+                        });
+                    }
                 };
-                map.borrow().get(&key).cloned().ok_or_else(|| CompilerError::NoSuchField {
-                    struct_name: "Map".to_string(),
-                    field: key,
-                    line, column,
-                })
+                map.borrow()
+                    .get(&key)
+                    .cloned()
+                    .ok_or_else(|| CompilerError::NoSuchField {
+                        struct_name: "Map".to_string(),
+                        field: key,
+                        line,
+                        column,
+                    })
             }
             other => Err(CompilerError::TypeMismatch {
                 operation: "index".to_string(),
                 expected: "Array or Map".to_string(),
                 found: other.type_name().to_string(),
-                line, column,
+                line,
+                column,
             }),
         }
     }
@@ -996,9 +1219,9 @@ impl<W: std::io::Write> Interpreter<W> {
         crate::semantic::analyze(&program).map_err(|e| e)?;
 
         // Run the module in a child environment, then expose its exports.
-        let module_env = Rc::new(RefCell::new(
-            Environment::with_parent(self.environment.clone()),
-        ));
+        let module_env = Rc::new(RefCell::new(Environment::with_parent(
+            self.environment.clone(),
+        )));
         let previous = std::mem::replace(&mut self.environment, module_env.clone());
         for stmt in &program.statements {
             self.exec_stmt(stmt)?;
@@ -1010,12 +1233,12 @@ impl<W: std::io::Write> Interpreter<W> {
             .borrow()
             .exported_names()
             .into_iter()
-            .filter_map(|n| {
-                module_env.borrow().get_direct(&n).map(|v| (n, v))
-            })
+            .filter_map(|n| module_env.borrow().get_direct(&n).map(|v| (n, v)))
             .collect();
         let module_val = RuntimeValue::Map(Rc::new(RefCell::new(exports)));
-        self.environment.borrow_mut().define(name.to_string(), module_val, true, line, column)?;
+        self.environment
+            .borrow_mut()
+            .define(name.to_string(), module_val, true, line, column)?;
         Ok(None)
     }
 
@@ -1031,14 +1254,19 @@ impl<W: std::io::Write> Interpreter<W> {
         // Build a Map of variant_name -> EnumVariant value.
         let mut map: HashMap<String, RuntimeValue> = HashMap::new();
         for (vname, _payload_type) in variants {
-            map.insert(vname.clone(), RuntimeValue::EnumVariant {
-                enum_name: name.to_string(),
-                variant: vname.clone(),
-                payload: None,
-            });
+            map.insert(
+                vname.clone(),
+                RuntimeValue::EnumVariant {
+                    enum_name: name.to_string(),
+                    variant: vname.clone(),
+                    payload: None,
+                },
+            );
         }
         let enum_val = RuntimeValue::Map(Rc::new(RefCell::new(map)));
-        self.environment.borrow_mut().define(name.to_string(), enum_val, true, line, column)?;
+        self.environment
+            .borrow_mut()
+            .define(name.to_string(), enum_val, true, line, column)?;
         Ok(None)
     }
 
@@ -1054,9 +1282,9 @@ impl<W: std::io::Write> Interpreter<W> {
         let val = self.eval_expr(subject)?;
         for arm in arms {
             if let Some(binding) = match_pattern(&arm.pattern, &val) {
-                let child = Rc::new(RefCell::new(
-                    Environment::with_parent(self.environment.clone()),
-                ));
+                let child = Rc::new(RefCell::new(Environment::with_parent(
+                    self.environment.clone(),
+                )));
                 for (bname, bval) in binding {
                     child.borrow_mut().define(bname, bval, false, 0, 0)?;
                 }
@@ -1068,12 +1296,7 @@ impl<W: std::io::Write> Interpreter<W> {
 
     // ── Spawn ─────────────────────────────────────────────────────────
 
-    fn exec_spawn(
-        &mut self,
-        expression: &Expression,
-        line: usize,
-        column: usize,
-    ) -> StmtResult {
+    fn exec_spawn(&mut self, expression: &Expression, line: usize, column: usize) -> StmtResult {
         // Run inline for now — Rc-based values are not Send across OS threads.
         let callee = self.eval_expr(expression)?;
         match callee {
@@ -1087,7 +1310,8 @@ impl<W: std::io::Write> Interpreter<W> {
             }
             other => Err(CompilerError::NotCallable {
                 found: other.type_name().to_string(),
-                line, column,
+                line,
+                column,
             }),
         }
     }
@@ -1102,16 +1326,21 @@ fn eval_add(
     column: usize,
 ) -> Result<RuntimeValue, CompilerError> {
     match (left, right) {
-        (RuntimeValue::Integer(l), RuntimeValue::Integer(r)) => Ok(RuntimeValue::Integer(l.wrapping_add(r))),
-        (RuntimeValue::Float(l),   RuntimeValue::Float(r))   => Ok(RuntimeValue::Float(l + r)),
-        (RuntimeValue::Integer(l), RuntimeValue::Float(r))   => Ok(RuntimeValue::Float(l as f64 + r)),
-        (RuntimeValue::Float(l),   RuntimeValue::Integer(r)) => Ok(RuntimeValue::Float(l + r as f64)),
-        (RuntimeValue::String(l),  RuntimeValue::String(r))  => Ok(RuntimeValue::String(format!("{l}{r}"))),
+        (RuntimeValue::Integer(l), RuntimeValue::Integer(r)) => {
+            Ok(RuntimeValue::Integer(l.wrapping_add(r)))
+        }
+        (RuntimeValue::Float(l), RuntimeValue::Float(r)) => Ok(RuntimeValue::Float(l + r)),
+        (RuntimeValue::Integer(l), RuntimeValue::Float(r)) => Ok(RuntimeValue::Float(l as f64 + r)),
+        (RuntimeValue::Float(l), RuntimeValue::Integer(r)) => Ok(RuntimeValue::Float(l + r as f64)),
+        (RuntimeValue::String(l), RuntimeValue::String(r)) => {
+            Ok(RuntimeValue::String(format!("{l}{r}")))
+        }
         (l, r) => Err(CompilerError::TypeMismatch {
             operation: "addition '+'".to_string(),
-            expected:  "numbers or strings".to_string(),
-            found:     format!("{} and {}", l.type_name(), r.type_name()),
-            line, column,
+            expected: "numbers or strings".to_string(),
+            found: format!("{} and {}", l.type_name(), r.type_name()),
+            line,
+            column,
         }),
     }
 }
@@ -1124,11 +1353,13 @@ fn eval_arithmetic(
     column: usize,
 ) -> Result<RuntimeValue, CompilerError> {
     match (left, right) {
-        (RuntimeValue::Integer(l), RuntimeValue::Integer(r)) => Ok(RuntimeValue::Integer(match op {
-            "-" => l.wrapping_sub(r),
-            "*" => l.wrapping_mul(r),
-            _ => unreachable!(),
-        })),
+        (RuntimeValue::Integer(l), RuntimeValue::Integer(r)) => {
+            Ok(RuntimeValue::Integer(match op {
+                "-" => l.wrapping_sub(r),
+                "*" => l.wrapping_mul(r),
+                _ => unreachable!(),
+            }))
+        }
         (RuntimeValue::Float(l), RuntimeValue::Float(r)) => Ok(RuntimeValue::Float(match op {
             "-" => l - r,
             "*" => l * r,
@@ -1146,9 +1377,10 @@ fn eval_arithmetic(
         })),
         (l, r) => Err(CompilerError::TypeMismatch {
             operation: format!("arithmetic '{op}'"),
-            expected:  "numbers (Integer or Float)".to_string(),
-            found:     format!("{} and {}", l.type_name(), r.type_name()),
-            line, column,
+            expected: "numbers (Integer or Float)".to_string(),
+            found: format!("{} and {}", l.type_name(), r.type_name()),
+            line,
+            column,
         }),
     }
 }
@@ -1162,28 +1394,49 @@ fn eval_division(
 ) -> Result<RuntimeValue, CompilerError> {
     match (left, right) {
         (RuntimeValue::Integer(l), RuntimeValue::Integer(r)) => {
-            if r == 0 { return Err(CompilerError::DivisionByZero { line, column }); }
-            Ok(RuntimeValue::Integer(match op { "/" => l.wrapping_div(r), _ => l.wrapping_rem(r) }))
+            if r == 0 {
+                return Err(CompilerError::DivisionByZero { line, column });
+            }
+            Ok(RuntimeValue::Integer(match op {
+                "/" => l.wrapping_div(r),
+                _ => l.wrapping_rem(r),
+            }))
         }
         (RuntimeValue::Float(l), RuntimeValue::Float(r)) => {
-            if r == 0.0 { return Err(CompilerError::DivisionByZero { line, column }); }
-            Ok(RuntimeValue::Float(match op { "/" => l / r, _ => l % r }))
+            if r == 0.0 {
+                return Err(CompilerError::DivisionByZero { line, column });
+            }
+            Ok(RuntimeValue::Float(match op {
+                "/" => l / r,
+                _ => l % r,
+            }))
         }
         (RuntimeValue::Integer(l), RuntimeValue::Float(r)) => {
-            if r == 0.0 { return Err(CompilerError::DivisionByZero { line, column }); }
+            if r == 0.0 {
+                return Err(CompilerError::DivisionByZero { line, column });
+            }
             let lf = l as f64;
-            Ok(RuntimeValue::Float(match op { "/" => lf / r, _ => lf % r }))
+            Ok(RuntimeValue::Float(match op {
+                "/" => lf / r,
+                _ => lf % r,
+            }))
         }
         (RuntimeValue::Float(l), RuntimeValue::Integer(r)) => {
-            if r == 0 { return Err(CompilerError::DivisionByZero { line, column }); }
+            if r == 0 {
+                return Err(CompilerError::DivisionByZero { line, column });
+            }
             let rf = r as f64;
-            Ok(RuntimeValue::Float(match op { "/" => l / rf, _ => l % rf }))
+            Ok(RuntimeValue::Float(match op {
+                "/" => l / rf,
+                _ => l % rf,
+            }))
         }
         (l, r) => Err(CompilerError::TypeMismatch {
             operation: format!("'{op}'"),
-            expected:  "numbers".to_string(),
-            found:     format!("{} and {}", l.type_name(), r.type_name()),
-            line, column,
+            expected: "numbers".to_string(),
+            found: format!("{} and {}", l.type_name(), r.type_name()),
+            line,
+            column,
         }),
     }
 }
@@ -1191,12 +1444,12 @@ fn eval_division(
 fn eval_equality(left: &RuntimeValue, right: &RuntimeValue) -> bool {
     match (left, right) {
         (RuntimeValue::Integer(l), RuntimeValue::Integer(r)) => l == r,
-        (RuntimeValue::Float(l),   RuntimeValue::Float(r))   => l == r,
-        (RuntimeValue::Integer(l), RuntimeValue::Float(r))   => (*l as f64) == *r,
-        (RuntimeValue::Float(l),   RuntimeValue::Integer(r)) => *l == (*r as f64),
-        (RuntimeValue::String(l),  RuntimeValue::String(r))  => l == r,
+        (RuntimeValue::Float(l), RuntimeValue::Float(r)) => l == r,
+        (RuntimeValue::Integer(l), RuntimeValue::Float(r)) => (*l as f64) == *r,
+        (RuntimeValue::Float(l), RuntimeValue::Integer(r)) => *l == (*r as f64),
+        (RuntimeValue::String(l), RuntimeValue::String(r)) => l == r,
         (RuntimeValue::Boolean(l), RuntimeValue::Boolean(r)) => l == r,
-        (RuntimeValue::Null,       RuntimeValue::Null)        => true,
+        (RuntimeValue::Null, RuntimeValue::Null) => true,
         _ => false,
     }
 }
@@ -1211,53 +1464,49 @@ fn eval_comparison(
     macro_rules! cmp {
         ($l:expr, $r:expr) => {
             Ok(RuntimeValue::Boolean(match op {
-                "<"  => $l < $r,
-                ">"  => $l > $r,
+                "<" => $l < $r,
+                ">" => $l > $r,
                 "<=" => $l <= $r,
                 ">=" => $l >= $r,
-                _    => unreachable!(),
+                _ => unreachable!(),
             }))
         };
     }
     match (left, right) {
         (RuntimeValue::Integer(l), RuntimeValue::Integer(r)) => cmp!(l, r),
-        (RuntimeValue::Float(l),   RuntimeValue::Float(r))   => cmp!(l, r),
-        (RuntimeValue::Integer(l), RuntimeValue::Float(r))   => cmp!(l as f64, r),
-        (RuntimeValue::Float(l),   RuntimeValue::Integer(r)) => cmp!(l, r as f64),
-        (RuntimeValue::String(l),  RuntimeValue::String(r))  => cmp!(l, r),
+        (RuntimeValue::Float(l), RuntimeValue::Float(r)) => cmp!(l, r),
+        (RuntimeValue::Integer(l), RuntimeValue::Float(r)) => cmp!(l as f64, r),
+        (RuntimeValue::Float(l), RuntimeValue::Integer(r)) => cmp!(l, r as f64),
+        (RuntimeValue::String(l), RuntimeValue::String(r)) => cmp!(l, r),
         (l, r) => Err(CompilerError::TypeMismatch {
             operation: format!("comparison '{op}'"),
-            expected:  "numbers or strings".to_string(),
-            found:     format!("{} and {}", l.type_name(), r.type_name()),
-            line, column,
+            expected: "numbers or strings".to_string(),
+            found: format!("{} and {}", l.type_name(), r.type_name()),
+            line,
+            column,
         }),
     }
 }
 
 // ── Truthiness ────────────────────────────────────────────────────────────
 
-fn is_truthy(val: &RuntimeValue) -> bool {
-    match val {
-        RuntimeValue::Boolean(b) => *b,
-        RuntimeValue::Null       => false,
-        RuntimeValue::Integer(n) => *n != 0,
-        RuntimeValue::Float(f)   => *f != 0.0,
-        _                        => true,
-    }
-}
-
-fn require_bool(val: RuntimeValue, op: &str, line: usize, column: usize) -> Result<bool, CompilerError> {
+fn require_bool(
+    val: RuntimeValue,
+    op: &str,
+    line: usize,
+    column: usize,
+) -> Result<bool, CompilerError> {
     match val {
         RuntimeValue::Boolean(b) => Ok(b),
         other => Err(CompilerError::TypeMismatch {
             operation: op.to_string(),
-            expected:  "Boolean".to_string(),
-            found:     other.type_name().to_string(),
-            line, column,
+            expected: "Boolean".to_string(),
+            found: other.type_name().to_string(),
+            line,
+            column,
         }),
     }
 }
-
 
 // ── Pattern matching helper ───────────────────────────────────────────────
 
@@ -1271,30 +1520,55 @@ fn match_pattern(
     match pattern {
         MatchPattern::Wildcard => Some(vec![]),
         MatchPattern::Integer(n) => {
-            if let RuntimeValue::Integer(v) = val { if v == n { return Some(vec![]); } }
+            if let RuntimeValue::Integer(v) = val {
+                if v == n {
+                    return Some(vec![]);
+                }
+            }
             None
         }
         MatchPattern::Float(n) => {
-            if let RuntimeValue::Float(v) = val { if v == n { return Some(vec![]); } }
+            if let RuntimeValue::Float(v) = val {
+                if v == n {
+                    return Some(vec![]);
+                }
+            }
             None
         }
         MatchPattern::StringLit(s) => {
-            if let RuntimeValue::String(v) = val { if v == s { return Some(vec![]); } }
+            if let RuntimeValue::String(v) = val {
+                if v == s {
+                    return Some(vec![]);
+                }
+            }
             None
         }
         MatchPattern::Boolean(b) => {
-            if let RuntimeValue::Boolean(v) = val { if v == b { return Some(vec![]); } }
+            if let RuntimeValue::Boolean(v) = val {
+                if v == b {
+                    return Some(vec![]);
+                }
+            }
             None
         }
         MatchPattern::Null => {
-            if matches!(val, RuntimeValue::Null) { Some(vec![]) } else { None }
+            if matches!(val, RuntimeValue::Null) {
+                Some(vec![])
+            } else {
+                None
+            }
         }
         MatchPattern::Identifier(name) => {
-            if name == "_" { return Some(vec![]); }
+            if name == "_" {
+                return Some(vec![]);
+            }
             Some(vec![(name.clone(), val.clone())])
         }
         MatchPattern::EnumVariant(variant_name, sub_pattern) => {
-            if let RuntimeValue::EnumVariant { variant, payload, .. } = val {
+            if let RuntimeValue::EnumVariant {
+                variant, payload, ..
+            } = val
+            {
                 if variant == variant_name {
                     match (sub_pattern, payload) {
                         (None, _) => return Some(vec![]),

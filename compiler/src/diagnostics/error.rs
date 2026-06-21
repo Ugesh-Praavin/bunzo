@@ -325,26 +325,23 @@ pub enum CompilerError {
     },
 
     /// `super` used outside of a class method (BZ1027).
-    InvalidSuper {
-        line: usize,
-        column: usize,
-    },
+    InvalidSuper { line: usize, column: usize },
 }
 
 impl fmt::Display for CompilerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CompilerError::FileNotFound(path) => {
-                write!(
-                    f,
-                    "error[BZ0001]\n\nFile not found:\n{}",
-                    path.display(),
-                )
+                write!(f, "error[BZ0001]\n\nFile not found:\n{}", path.display(),)
             }
             CompilerError::Io(err) => {
                 write!(f, "error[BZ0002]\n\nI/O error:\n{err}")
             }
-            CompilerError::UnexpectedCharacter { character, line, column } => {
+            CompilerError::UnexpectedCharacter {
+                character,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ0003]\n\nUnexpected character: '{character}'\n  --> line {line}, column {column}",
@@ -362,13 +359,22 @@ impl fmt::Display for CompilerError {
                     "error[BZ0005]\n\nUnterminated block comment\n  --> line {line}, column {column}\n\nHint: add '*/' to close the comment.",
                 )
             }
-            CompilerError::UnexpectedToken { expected, found, line, column } => {
+            CompilerError::UnexpectedToken {
+                expected,
+                found,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ0006]\n\nUnexpected token: expected {expected}, found {found}\n  --> line {line}, column {column}",
                 )
             }
-            CompilerError::ExpectedExpression { found, line, column } => {
+            CompilerError::ExpectedExpression {
+                found,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ0007]\n\nExpected expression, found {found}\n  --> line {line}, column {column}",
@@ -386,7 +392,13 @@ impl fmt::Display for CompilerError {
                     "error[BZ1002]\n\nCannot reassign to constant variable \"{name}\"\n  --> line {line}, column {column}\n\nHint: constant variables declared with 'const' cannot be reassigned. Use 'let' if mutability is required.",
                 )
             }
-            CompilerError::TypeMismatch { operation, expected, found, line, column } => {
+            CompilerError::TypeMismatch {
+                operation,
+                expected,
+                found,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ1003]\n\nType mismatch during {operation}: expected {expected}, found {found}\n  --> line {line}, column {column}",
@@ -404,13 +416,23 @@ impl fmt::Display for CompilerError {
                     "error[BZ1005]\n\nDuplicate declaration of variable \"{name}\"\n  --> line {line}, column {column}\n\nHint: variable \"{name}\" has already been declared in this scope. Use assignment '=' to update its value, or use a different name.",
                 )
             }
-            CompilerError::NotCallable { found, line, column } => {
+            CompilerError::NotCallable {
+                found,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ1006]\n\nValue is not callable: {found}\n  --> line {line}, column {column}\n\nHint: only functions can be called with '(...)'.",
                 )
             }
-            CompilerError::ArityMismatch { name, expected, found, line, column } => {
+            CompilerError::ArityMismatch {
+                name,
+                expected,
+                found,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ1007]\n\nFunction \"{name}\" expects {expected} argument(s), but {found} were given\n  --> line {line}, column {column}",
@@ -440,7 +462,13 @@ impl fmt::Display for CompilerError {
                     "error[BZ1012]\n\nUnknown struct type \"{name}\"\n  --> line {line}, column {column}\n\nHint: declare the struct with 'struct {name} {{ ... }}' before constructing it.",
                 )
             }
-            CompilerError::StructFieldMismatch { struct_name, missing, unexpected, line, column } => {
+            CompilerError::StructFieldMismatch {
+                struct_name,
+                missing,
+                unexpected,
+                line,
+                column,
+            } => {
                 let mut detail = String::new();
                 if !missing.is_empty() {
                     detail.push_str(&format!("missing field(s): {}", missing.join(", ")));
@@ -456,25 +484,44 @@ impl fmt::Display for CompilerError {
                     "error[BZ1013]\n\nStruct literal for \"{struct_name}\" does not match its declaration: {detail}\n  --> line {line}, column {column}",
                 )
             }
-            CompilerError::NoSuchField { struct_name, field, line, column } => {
+            CompilerError::NoSuchField {
+                struct_name,
+                field,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ1014]\n\nStruct \"{struct_name}\" has no field \"{field}\"\n  --> line {line}, column {column}",
                 )
             }
-            CompilerError::RuntimeException { message, line, column } => {
+            CompilerError::RuntimeException {
+                message,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ1015]\n\nRuntime exception: {message}\n  --> line {line}, column {column}",
                 )
             }
-            CompilerError::Thrown { value, line, column } => {
+            CompilerError::Thrown {
+                value,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ1015]\n\nRuntime exception: {value}\n  --> line {line}, column {column}",
                 )
             }
-            CompilerError::TypeAnnotationMismatch { expected, found, context, line, column } => {
+            CompilerError::TypeAnnotationMismatch {
+                expected,
+                found,
+                context,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ1016]\n\nType mismatch in {context}: expected '{expected}', found '{found}'\n  --> line {line}, column {column}",
@@ -498,13 +545,22 @@ impl fmt::Display for CompilerError {
                     "error[BZ1019]\n\nModule \"{name}\" not found\n  --> line {line}, column {column}",
                 )
             }
-            CompilerError::IndexOutOfBounds { index, length, line, column } => {
+            CompilerError::IndexOutOfBounds {
+                index,
+                length,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ1020]\n\nIndex {index} out of bounds for array of length {length}\n  --> line {line}, column {column}",
                 )
             }
-            CompilerError::InvalidIndex { found, line, column } => {
+            CompilerError::InvalidIndex {
+                found,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ1021]\n\nInvalid index type '{found}': arrays require Integer index, maps require String\n  --> line {line}, column {column}",
@@ -522,19 +578,35 @@ impl fmt::Display for CompilerError {
                     "error[BZ1023]\n\nCannot instantiate abstract class \"{name}\"\n  --> line {line}, column {column}",
                 )
             }
-            CompilerError::InterfaceNotImplemented { class_name, interface_name, method_name, line, column } => {
+            CompilerError::InterfaceNotImplemented {
+                class_name,
+                interface_name,
+                method_name,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ1024]\n\nClass \"{class_name}\" does not implement interface method \"{method_name}\" from \"{interface_name}\"\n  --> line {line}, column {column}",
                 )
             }
-            CompilerError::PrivateFieldAccess { class_name, field, line, column } => {
+            CompilerError::PrivateFieldAccess {
+                class_name,
+                field,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ1025]\n\nCannot access private field \"{field}\" of class \"{class_name}\"\n  --> line {line}, column {column}",
                 )
             }
-            CompilerError::AbstractMethodNotImplemented { class_name, method_name, line, column } => {
+            CompilerError::AbstractMethodNotImplemented {
+                class_name,
+                method_name,
+                line,
+                column,
+            } => {
                 write!(
                     f,
                     "error[BZ1026]\n\nConcrete class \"{class_name}\" must implement abstract method \"{method_name}\"\n  --> line {line}, column {column}",
@@ -595,7 +667,10 @@ mod tests {
         assert!(message.contains("BZ0003"), "should contain error code");
         assert!(message.contains('@'), "should contain the character");
         assert!(message.contains("line 5"), "should contain line number");
-        assert!(message.contains("column 12"), "should contain column number");
+        assert!(
+            message.contains("column 12"),
+            "should contain column number"
+        );
     }
 
     #[test]
@@ -644,7 +719,10 @@ mod tests {
         let message = format!("{err}");
 
         assert!(message.contains("BZ0007"), "should contain error code");
-        assert!(message.contains("Expected expression"), "should contain message");
+        assert!(
+            message.contains("Expected expression"),
+            "should contain message"
+        );
         assert!(message.contains("'}'"), "should contain found token");
     }
 

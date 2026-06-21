@@ -140,15 +140,18 @@ fn builtin_to_int(
     match &args[0] {
         RuntimeValue::Integer(n) => Ok(RuntimeValue::Integer(*n)),
         RuntimeValue::Float(f) => Ok(RuntimeValue::Integer(*f as i64)),
-        RuntimeValue::String(s) => s.trim().parse::<i64>().map(RuntimeValue::Integer).map_err(
-            |_| CompilerError::TypeMismatch {
-                operation: "to_int()".into(),
-                expected: "parseable integer string".into(),
-                found: format!("\"{s}\""),
-                line,
-                column,
-            },
-        ),
+        RuntimeValue::String(s) => {
+            s.trim()
+                .parse::<i64>()
+                .map(RuntimeValue::Integer)
+                .map_err(|_| CompilerError::TypeMismatch {
+                    operation: "to_int()".into(),
+                    expected: "parseable integer string".into(),
+                    found: format!("\"{s}\""),
+                    line,
+                    column,
+                })
+        }
         other => Err(CompilerError::TypeMismatch {
             operation: "to_int()".into(),
             expected: "Integer, Float, or String".into(),
@@ -176,15 +179,17 @@ fn builtin_to_float(
     match &args[0] {
         RuntimeValue::Integer(n) => Ok(RuntimeValue::Float(*n as f64)),
         RuntimeValue::Float(f) => Ok(RuntimeValue::Float(*f)),
-        RuntimeValue::String(s) => s.trim().parse::<f64>().map(RuntimeValue::Float).map_err(
-            |_| CompilerError::TypeMismatch {
+        RuntimeValue::String(s) => s
+            .trim()
+            .parse::<f64>()
+            .map(RuntimeValue::Float)
+            .map_err(|_| CompilerError::TypeMismatch {
                 operation: "to_float()".into(),
                 expected: "parseable float string".into(),
                 found: format!("\"{s}\""),
                 line,
                 column,
-            },
-        ),
+            }),
         other => Err(CompilerError::TypeMismatch {
             operation: "to_float()".into(),
             expected: "Integer, Float, or String".into(),
@@ -354,9 +359,9 @@ fn builtin_contains(
             let found = arr.borrow().iter().any(|v| eval_equality(v, &args[1]));
             Ok(RuntimeValue::Boolean(found))
         }
-        (RuntimeValue::Map(map), RuntimeValue::String(key)) => Ok(RuntimeValue::Boolean(
-            map.borrow().contains_key(key),
-        )),
+        (RuntimeValue::Map(map), RuntimeValue::String(key)) => {
+            Ok(RuntimeValue::Boolean(map.borrow().contains_key(key)))
+        }
         (RuntimeValue::String(s), RuntimeValue::String(sub)) => {
             Ok(RuntimeValue::Boolean(s.contains(sub.as_str())))
         }
@@ -575,11 +580,15 @@ fn builtin_recv(
         });
     }
     if let RuntimeValue::Channel(rx) = &args[0] {
-        let val = rx.lock().unwrap().recv().map_err(|_| CompilerError::RuntimeException {
-            message: "channel closed".to_string(),
-            line,
-            column,
-        })?;
+        let val = rx
+            .lock()
+            .unwrap()
+            .recv()
+            .map_err(|_| CompilerError::RuntimeException {
+                message: "channel closed".to_string(),
+                line,
+                column,
+            })?;
         return Ok(val);
     }
     Err(CompilerError::TypeMismatch {
