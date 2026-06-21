@@ -14,8 +14,11 @@
 * break
 * continue
 
-## v0.5.0
+## v0.5.0 (Completed)
 * Functions
+* Object-Oriented Programming (Classes, Interfaces)
+* Type Checker
+* Error Handling
 
 ## v0.6.0
 * Modules

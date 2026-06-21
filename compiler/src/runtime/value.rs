@@ -4,8 +4,8 @@ use std::fmt;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use crate::ast::{Statement, Visibility};
 use super::environment::Environment;
+use crate::ast::{Statement, Visibility};
 
 /// A user-defined Bunzo function, as represented at runtime.
 #[derive(Debug, Clone, PartialEq)]
@@ -66,7 +66,11 @@ pub enum RuntimeValue {
     },
     Builtin {
         name: std::string::String,
-        func: fn(Vec<RuntimeValue>, usize, usize) -> Result<RuntimeValue, crate::diagnostics::CompilerError>,
+        func: fn(
+            Vec<RuntimeValue>,
+            usize,
+            usize,
+        ) -> Result<RuntimeValue, crate::diagnostics::CompilerError>,
     },
     /// A dynamic array.
     Array(Rc<RefCell<Vec<RuntimeValue>>>),
@@ -89,24 +93,24 @@ pub enum RuntimeValue {
 impl RuntimeValue {
     pub fn type_name(&self) -> &'static str {
         match self {
-            RuntimeValue::Integer(_)      => "Integer",
-            RuntimeValue::Float(_)        => "Float",
-            RuntimeValue::String(_)       => "String",
-            RuntimeValue::Boolean(_)      => "Boolean",
-            RuntimeValue::Null            => "Null",
-            RuntimeValue::Moved           => "Moved",
-            RuntimeValue::Error(_)        => "Error",
-            RuntimeValue::Function(_)     => "Function",
-            RuntimeValue::Struct { .. }   => "Struct",
-            RuntimeValue::Class(_)        => "Class",
-            RuntimeValue::Object { .. }   => "Object",
+            RuntimeValue::Integer(_) => "Integer",
+            RuntimeValue::Float(_) => "Float",
+            RuntimeValue::String(_) => "String",
+            RuntimeValue::Boolean(_) => "Boolean",
+            RuntimeValue::Null => "Null",
+            RuntimeValue::Moved => "Moved",
+            RuntimeValue::Error(_) => "Error",
+            RuntimeValue::Function(_) => "Function",
+            RuntimeValue::Struct { .. } => "Struct",
+            RuntimeValue::Class(_) => "Class",
+            RuntimeValue::Object { .. } => "Object",
             RuntimeValue::SuperHandle { .. } => "Super",
             RuntimeValue::BoundMethod { .. } => "BoundMethod",
-            RuntimeValue::Builtin { .. }  => "Builtin",
-            RuntimeValue::Array(_)        => "Array",
-            RuntimeValue::Map(_)          => "Map",
+            RuntimeValue::Builtin { .. } => "Builtin",
+            RuntimeValue::Array(_) => "Array",
+            RuntimeValue::Map(_) => "Map",
             RuntimeValue::EnumVariant { .. } => "EnumVariant",
-            RuntimeValue::Channel(_)      => "Channel",
+            RuntimeValue::Channel(_) => "Channel",
             RuntimeValue::ChannelSender(_) => "ChannelSender",
             RuntimeValue::DbConnection(_) => "DbConnection",
         }
@@ -117,13 +121,13 @@ impl RuntimeValue {
 impl PartialEq for RuntimeValue {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (RuntimeValue::Integer(a),  RuntimeValue::Integer(b))  => a == b,
-            (RuntimeValue::Float(a),    RuntimeValue::Float(b))    => a == b,
-            (RuntimeValue::String(a),   RuntimeValue::String(b))   => a == b,
-            (RuntimeValue::Boolean(a),  RuntimeValue::Boolean(b))  => a == b,
-            (RuntimeValue::Null,        RuntimeValue::Null)        => true,
-            (RuntimeValue::Moved,       RuntimeValue::Moved)       => true,
-            (RuntimeValue::Error(a),    RuntimeValue::Error(b))    => a == b,
+            (RuntimeValue::Integer(a), RuntimeValue::Integer(b)) => a == b,
+            (RuntimeValue::Float(a), RuntimeValue::Float(b)) => a == b,
+            (RuntimeValue::String(a), RuntimeValue::String(b)) => a == b,
+            (RuntimeValue::Boolean(a), RuntimeValue::Boolean(b)) => a == b,
+            (RuntimeValue::Null, RuntimeValue::Null) => true,
+            (RuntimeValue::Moved, RuntimeValue::Moved) => true,
+            (RuntimeValue::Error(a), RuntimeValue::Error(b)) => a == b,
             _ => false,
         }
     }
@@ -132,21 +136,25 @@ impl PartialEq for RuntimeValue {
 impl fmt::Display for RuntimeValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RuntimeValue::Integer(val)  => write!(f, "{val}"),
-            RuntimeValue::Float(val)    => write!(f, "{val}"),
-            RuntimeValue::String(val)   => write!(f, "{val}"),
-            RuntimeValue::Boolean(val)  => write!(f, "{val}"),
-            RuntimeValue::Null          => write!(f, "null"),
-            RuntimeValue::Moved         => write!(f, "<moved>"),
-            RuntimeValue::Error(msg)    => write!(f, "Error({msg})"),
-            RuntimeValue::Function(func)        => write!(f, "<function {}>", func.name),
-            RuntimeValue::Class(c)              => write!(f, "<class {}>", c.name),
+            RuntimeValue::Integer(val) => write!(f, "{val}"),
+            RuntimeValue::Float(val) => write!(f, "{val}"),
+            RuntimeValue::String(val) => write!(f, "{val}"),
+            RuntimeValue::Boolean(val) => write!(f, "{val}"),
+            RuntimeValue::Null => write!(f, "null"),
+            RuntimeValue::Moved => write!(f, "<moved>"),
+            RuntimeValue::Error(msg) => write!(f, "Error({msg})"),
+            RuntimeValue::Function(func) => write!(f, "<function {}>", func.name),
+            RuntimeValue::Class(c) => write!(f, "<class {}>", c.name),
             RuntimeValue::BoundMethod { method, .. } => write!(f, "<method {}>", method.name),
-            RuntimeValue::Builtin { name, .. }  => write!(f, "<builtin {name}>"),
-            RuntimeValue::Channel(_)            => write!(f, "<channel>"),
-            RuntimeValue::ChannelSender(_)      => write!(f, "<channel_sender>"),
-            RuntimeValue::DbConnection(_)       => write!(f, "<db_connection>"),
-            RuntimeValue::EnumVariant { enum_name, variant, payload } => {
+            RuntimeValue::Builtin { name, .. } => write!(f, "<builtin {name}>"),
+            RuntimeValue::Channel(_) => write!(f, "<channel>"),
+            RuntimeValue::ChannelSender(_) => write!(f, "<channel_sender>"),
+            RuntimeValue::DbConnection(_) => write!(f, "<db_connection>"),
+            RuntimeValue::EnumVariant {
+                enum_name,
+                variant,
+                payload,
+            } => {
                 if let Some(p) = payload {
                     write!(f, "{enum_name}::{variant}({p})")
                 } else {
@@ -157,7 +165,9 @@ impl fmt::Display for RuntimeValue {
                 let b = arr.borrow();
                 write!(f, "[")?;
                 for (i, v) in b.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{v}")?;
                 }
                 write!(f, "]")
@@ -168,13 +178,17 @@ impl fmt::Display for RuntimeValue {
                 let mut keys: Vec<&String> = b.keys().collect();
                 keys.sort();
                 for (i, k) in keys.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{k}: {}", b.get(*k).unwrap())?;
                 }
                 write!(f, "}}")
             }
             RuntimeValue::SuperHandle { parent_class, .. } => write!(f, "<super {parent_class}>"),
-            RuntimeValue::Object { class_name, fields, .. } => {
+            RuntimeValue::Object {
+                class_name, fields, ..
+            } => {
                 let fb = fields.borrow();
                 if fb.is_empty() {
                     write!(f, "{class_name} {{}}")
@@ -183,7 +197,9 @@ impl fmt::Display for RuntimeValue {
                     let mut sorted_keys: Vec<&String> = fb.keys().collect();
                     sorted_keys.sort();
                     for (i, key) in sorted_keys.iter().enumerate() {
-                        if i > 0 { write!(f, ", ")?; }
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
                         write!(f, "{}: {}", key, fb.get(*key).unwrap())?;
                     }
                     write!(f, " }}")
@@ -197,7 +213,9 @@ impl fmt::Display for RuntimeValue {
                     let mut sorted_keys: Vec<&String> = fields.keys().collect();
                     sorted_keys.sort();
                     for (i, key) in sorted_keys.iter().enumerate() {
-                        if i > 0 { write!(f, ", ")?; }
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
                         write!(f, "{}: {}", key, fields.get(*key).unwrap())?;
                     }
                     write!(f, " }}")

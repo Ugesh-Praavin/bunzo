@@ -189,10 +189,7 @@ fn run_while_nested_break_continue() {
 fn parse_for_empty() {
     let prog = parse_source("for i in 1..5 { }").unwrap();
     assert_eq!(prog.statements.len(), 1);
-    assert!(matches!(
-        prog.statements[0],
-        Statement::ForStatement { .. }
-    ));
+    assert!(matches!(prog.statements[0], Statement::ForStatement { .. }));
 }
 
 #[test]

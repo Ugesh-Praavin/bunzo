@@ -31,9 +31,7 @@ pub fn build() -> RuntimeValue {
                 });
             }
             if let RuntimeValue::String(key) = &args[0] {
-                return Ok(RuntimeValue::String(
-                    std::env::var(key).unwrap_or_default(),
-                ));
+                return Ok(RuntimeValue::String(std::env::var(key).unwrap_or_default()));
             }
             Err(CompilerError::TypeMismatch {
                 operation: "os.env()".into(),

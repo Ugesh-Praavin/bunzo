@@ -304,7 +304,6 @@ pub enum Statement {
     },
 
     // ─────────────────── Phase 4+ additions ─────────────────────────
-
     /// `import moduleName` or `import name from "path"` — module import.
     ImportDeclaration {
         /// The local binding name (e.g. `json` in `import json`).
@@ -390,10 +389,7 @@ pub enum Expression {
     },
 
     /// The `null` literal.
-    NullLiteral {
-        line: usize,
-        column: usize,
-    },
+    NullLiteral { line: usize, column: usize },
 
     /// A variable reference, e.g. `x`.
     Identifier {
@@ -469,7 +465,6 @@ pub enum Expression {
     },
 
     // ─────────────────── Phase 4+ additions ─────────────────────────
-
     /// An array literal, e.g. `[1, 2, 3]`.
     ArrayLiteral {
         elements: Vec<Expression>,
@@ -516,10 +511,7 @@ pub enum Expression {
     },
 
     /// `super` — reference to the parent class (inside methods only).
-    SuperExpr {
-        line: usize,
-        column: usize,
-    },
+    SuperExpr { line: usize, column: usize },
 }
 
 // ── Operators ─────────────────────────────────────────────────────────────

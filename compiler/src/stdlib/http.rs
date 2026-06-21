@@ -14,7 +14,10 @@ pub fn build() -> RuntimeValue {
     map.insert("get".to_string(), make_builtin("http.get", http_get));
     map.insert("post".to_string(), make_builtin("http.post", http_post));
     map.insert("put".to_string(), make_builtin("http.put", http_put));
-    map.insert("delete".to_string(), make_builtin("http.delete", http_delete));
+    map.insert(
+        "delete".to_string(),
+        make_builtin("http.delete", http_delete),
+    );
     map.insert("patch".to_string(), make_builtin("http.patch", http_patch));
     module_map(map)
 }
@@ -190,22 +193,42 @@ fn run_request(
     }
 }
 
-fn http_get(args: Vec<RuntimeValue>, line: usize, column: usize) -> Result<RuntimeValue, CompilerError> {
+fn http_get(
+    args: Vec<RuntimeValue>,
+    line: usize,
+    column: usize,
+) -> Result<RuntimeValue, CompilerError> {
     run_request("GET", args, "http.get", line, column, false)
 }
 
-fn http_post(args: Vec<RuntimeValue>, line: usize, column: usize) -> Result<RuntimeValue, CompilerError> {
+fn http_post(
+    args: Vec<RuntimeValue>,
+    line: usize,
+    column: usize,
+) -> Result<RuntimeValue, CompilerError> {
     run_request("POST", args, "http.post", line, column, true)
 }
 
-fn http_put(args: Vec<RuntimeValue>, line: usize, column: usize) -> Result<RuntimeValue, CompilerError> {
+fn http_put(
+    args: Vec<RuntimeValue>,
+    line: usize,
+    column: usize,
+) -> Result<RuntimeValue, CompilerError> {
     run_request("PUT", args, "http.put", line, column, true)
 }
 
-fn http_delete(args: Vec<RuntimeValue>, line: usize, column: usize) -> Result<RuntimeValue, CompilerError> {
+fn http_delete(
+    args: Vec<RuntimeValue>,
+    line: usize,
+    column: usize,
+) -> Result<RuntimeValue, CompilerError> {
     run_request("DELETE", args, "http.delete", line, column, false)
 }
 
-fn http_patch(args: Vec<RuntimeValue>, line: usize, column: usize) -> Result<RuntimeValue, CompilerError> {
+fn http_patch(
+    args: Vec<RuntimeValue>,
+    line: usize,
+    column: usize,
+) -> Result<RuntimeValue, CompilerError> {
     run_request("PATCH", args, "http.patch", line, column, true)
 }

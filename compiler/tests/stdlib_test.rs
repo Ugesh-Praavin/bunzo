@@ -50,10 +50,7 @@ fn test_import_http_and_json_modules() {
         "#,
     )
     .unwrap();
-    assert_eq!(
-        out,
-        "Builtin\nBuiltin\nBuiltin\nBuiltin\nBuiltin\n42\n"
-    );
+    assert_eq!(out, "Builtin\nBuiltin\nBuiltin\nBuiltin\nBuiltin\n42\n");
 }
 
 #[test]

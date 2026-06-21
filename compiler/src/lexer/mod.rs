@@ -120,7 +120,7 @@ impl Lexer {
             }
 
             // ── QuestionMark ──────────────────────────────────────────
-            '?' => self.push(TokenKind::QuestionMark, "?", start_line, start_col),            // ── Plus / PlusPlus / PlusEqual ────────────────────────────
+            '?' => self.push(TokenKind::QuestionMark, "?", start_line, start_col), // ── Plus / PlusPlus / PlusEqual ────────────────────────────
             '+' => {
                 if self.peek() == '+' {
                     self.advance();

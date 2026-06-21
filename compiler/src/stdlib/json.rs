@@ -57,10 +57,7 @@ fn runtime_value_to_json(val: &RuntimeValue) -> String {
         RuntimeValue::Boolean(b) => b.to_string(),
         RuntimeValue::Integer(n) => n.to_string(),
         RuntimeValue::Float(f) => f.to_string(),
-        RuntimeValue::String(s) => format!(
-            "\"{}\"",
-            s.replace('\\', "\\\\").replace('"', "\\\"")
-        ),
+        RuntimeValue::String(s) => format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"")),
         RuntimeValue::Array(arr) => {
             let parts: Vec<String> = arr.borrow().iter().map(runtime_value_to_json).collect();
             format!("[{}]", parts.join(","))
@@ -99,7 +96,7 @@ fn runtime_value_to_json(val: &RuntimeValue) -> String {
     }
 }
 
-fn json_str_to_value(s: &str, line: usize, column: usize) -> Result<RuntimeValue, CompilerError> {
+fn json_str_to_value(s: &str, _line: usize, _column: usize) -> Result<RuntimeValue, CompilerError> {
     let s = s.trim();
     if s == "null" {
         return Ok(RuntimeValue::Null);

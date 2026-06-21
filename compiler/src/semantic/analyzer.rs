@@ -167,8 +167,6 @@ struct ClassInfo {
     implements: Vec<String>,
     fields: HashMap<String, Visibility>,
     methods: HashMap<String, MethodInfo>,
-    line: usize,
-    column: usize,
 }
 
 struct InterfaceInfo {
@@ -215,7 +213,9 @@ impl SemanticAnalyzer {
         let mut pending = HashSet::new();
         let mut current = Some(parent.to_string());
         while let Some(name) = current {
-            let Some(info) = self.class_defs.get(&name) else { break };
+            let Some(info) = self.class_defs.get(&name) else {
+                break;
+            };
             for (method_name, method_info) in &info.methods {
                 if method_info.is_abstract {
                     pending.insert(method_name.clone());
@@ -282,7 +282,12 @@ impl SemanticAnalyzer {
 
     fn analyze_statement(&mut self, stmt: &Statement) -> Result<(), CompilerError> {
         match stmt {
-            Statement::LetDeclaration { name, initializer, line, column } => {
+            Statement::LetDeclaration {
+                name,
+                initializer,
+                line,
+                column,
+            } => {
                 self.analyze_expression(initializer)?;
                 self.current_scope.borrow_mut().define(
                     name.clone(),
@@ -291,7 +296,12 @@ impl SemanticAnalyzer {
                     *column,
                 )?;
             }
-            Statement::ConstDeclaration { name, initializer, line, column } => {
+            Statement::ConstDeclaration {
+                name,
+                initializer,
+                line,
+                column,
+            } => {
                 self.analyze_expression(initializer)?;
                 self.current_scope.borrow_mut().define(
                     name.clone(),
@@ -306,7 +316,14 @@ impl SemanticAnalyzer {
             Statement::ExpressionStatement { expression } => {
                 self.analyze_expression(expression)?;
             }
-            Statement::FunctionDeclaration { name, params, body, line, column, .. } => {
+            Statement::FunctionDeclaration {
+                name,
+                params,
+                body,
+                line,
+                column,
+                ..
+            } => {
                 // Define the function in the *enclosing* scope first, so
                 // that recursive calls inside its own body resolve.
                 self.current_scope.borrow_mut().define_function(
@@ -318,7 +335,8 @@ impl SemanticAnalyzer {
 
                 // Analyze the body in a fresh scope nested under the
                 // current one, seeded with the function's parameters.
-                let function_scope = Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
+                let function_scope =
+                    Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
                 for param in params {
                     function_scope.borrow_mut().define(
                         param.name.clone(),
@@ -339,7 +357,11 @@ impl SemanticAnalyzer {
 
                 result?;
             }
-            Statement::ReturnStatement { value, line, column } => {
+            Statement::ReturnStatement {
+                value,
+                line,
+                column,
+            } => {
                 if !self.in_function {
                     return Err(CompilerError::ReturnOutsideFunction {
                         line: *line,
@@ -350,7 +372,12 @@ impl SemanticAnalyzer {
                     self.analyze_expression(expr)?;
                 }
             }
-            Statement::Assignment { name, value, line, column } => {
+            Statement::Assignment {
+                name,
+                value,
+                line,
+                column,
+            } => {
                 self.analyze_expression(value)?;
                 let symbol = self.current_scope.borrow().lookup(name).ok_or_else(|| {
                     CompilerError::UndefinedVariable {
@@ -367,27 +394,37 @@ impl SemanticAnalyzer {
                     });
                 }
             }
-            Statement::IfStatement { condition, then_branch, else_branch, .. } => {
+            Statement::IfStatement {
+                condition,
+                then_branch,
+                else_branch,
+                ..
+            } => {
                 self.analyze_expression(condition)?;
 
-                let then_scope = Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
+                let then_scope =
+                    Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
                 let previous_scope = std::mem::replace(&mut self.current_scope, then_scope);
                 let result = self.analyze_block(then_branch);
                 self.current_scope = previous_scope;
                 result?;
 
                 if let Some(else_stmts) = else_branch {
-                    let else_scope = Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
+                    let else_scope =
+                        Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
                     let previous_scope = std::mem::replace(&mut self.current_scope, else_scope);
                     let result = self.analyze_block(else_stmts);
                     self.current_scope = previous_scope;
                     result?;
                 }
             }
-            Statement::WhileStatement { condition, body, .. } => {
+            Statement::WhileStatement {
+                condition, body, ..
+            } => {
                 self.analyze_expression(condition)?;
 
-                let loop_scope = Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
+                let loop_scope =
+                    Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
                 let previous_scope = std::mem::replace(&mut self.current_scope, loop_scope);
                 self.loop_depth += 1;
                 let result = self.analyze_block(body);
@@ -395,12 +432,22 @@ impl SemanticAnalyzer {
                 self.current_scope = previous_scope;
                 result?;
             }
-            Statement::ForStatement { variable, start, end, body, line, column } => {
+            Statement::ForStatement {
+                variable,
+                start,
+                end,
+                body,
+                line,
+                column,
+            } => {
                 self.analyze_expression(start)?;
                 self.analyze_expression(end)?;
 
-                let loop_scope = Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
-                loop_scope.borrow_mut().define(variable.clone(), false, *line, *column)?;
+                let loop_scope =
+                    Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
+                loop_scope
+                    .borrow_mut()
+                    .define(variable.clone(), false, *line, *column)?;
                 let previous_scope = std::mem::replace(&mut self.current_scope, loop_scope);
                 self.loop_depth += 1;
                 let result = self.analyze_block(body);
@@ -424,7 +471,12 @@ impl SemanticAnalyzer {
                     });
                 }
             }
-            Statement::StructDeclaration { name, fields, line, column } => {
+            Statement::StructDeclaration {
+                name,
+                fields,
+                line,
+                column,
+            } => {
                 if self.struct_defs.contains_key(name) || self.class_defs.contains_key(name) {
                     return Err(CompilerError::DuplicateDeclaration {
                         name: name.clone(),
@@ -563,11 +615,23 @@ impl SemanticAnalyzer {
                     }
                 }
 
-                let init_arity = method_map
-                    .get("init")
-                    .filter(|m| !m.is_abstract)
-                    .map(|m| m.arity)
-                    .unwrap_or(0);
+                let mut init_arity = 0;
+                if let Some(m) = method_map.get("init").filter(|m| !m.is_abstract) {
+                    init_arity = m.arity;
+                } else if let Some(parent) = extends {
+                    let mut curr = Some(parent.clone());
+                    while let Some(ref p_name) = curr {
+                        if let Some(p_info) = self.class_defs.get(p_name) {
+                            if let Some(m) = p_info.methods.get("init").filter(|m| !m.is_abstract) {
+                                init_arity = m.arity;
+                                break;
+                            }
+                            curr = p_info.extends.clone();
+                        } else {
+                            break;
+                        }
+                    }
+                }
 
                 self.current_scope.borrow_mut().define_function(
                     name.clone(),
@@ -584,8 +648,6 @@ impl SemanticAnalyzer {
                         implements: implements.clone(),
                         fields: field_map,
                         methods: method_map,
-                        line: *line,
-                        column: *column,
                     },
                 );
 
@@ -604,9 +666,12 @@ impl SemanticAnalyzer {
                         }
                         let method_scope =
                             Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
-                        method_scope
-                            .borrow_mut()
-                            .define("this".to_string(), true, *m_line, *m_col)?;
+                        method_scope.borrow_mut().define(
+                            "this".to_string(),
+                            true,
+                            *m_line,
+                            *m_col,
+                        )?;
                         for param in params {
                             method_scope.borrow_mut().define(
                                 param.name.clone(),
@@ -631,20 +696,36 @@ impl SemanticAnalyzer {
                     }
                 }
             }
-            Statement::FieldAssignment { object, field, value, line, column } => {
+            Statement::FieldAssignment {
+                object,
+                field,
+                value,
+                line,
+                column,
+            } => {
                 self.check_object_field_access(object, field, *line, *column)?;
                 self.analyze_expression(object)?;
                 self.analyze_expression(value)?;
             }
-            Statement::TryCatch { try_block, catch_var, catch_block, line, column } => {
-                let try_scope = Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
+            Statement::TryCatch {
+                try_block,
+                catch_var,
+                catch_block,
+                line,
+                column,
+            } => {
+                let try_scope =
+                    Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
                 let previous_scope = std::mem::replace(&mut self.current_scope, try_scope);
                 let try_result = self.analyze_block(try_block);
                 self.current_scope = previous_scope;
                 try_result?;
 
-                let catch_scope = Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
-                catch_scope.borrow_mut().define(catch_var.clone(), false, *line, *column)?;
+                let catch_scope =
+                    Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
+                catch_scope
+                    .borrow_mut()
+                    .define(catch_var.clone(), false, *line, *column)?;
                 let previous_scope = std::mem::replace(&mut self.current_scope, catch_scope);
                 let catch_result = self.analyze_block(catch_block);
                 self.current_scope = previous_scope;
@@ -654,17 +735,18 @@ impl SemanticAnalyzer {
                 self.analyze_expression(value)?;
             }
             // ── Phase 4+ statements ───────────────────────────────────
-            Statement::ImportDeclaration { name, line, column, .. } => {
+            Statement::ImportDeclaration {
+                name, line, column, ..
+            } => {
                 // Bind the module name so `http.get`-style field access type-checks.
-                self.current_scope.borrow_mut().define(
-                    name.clone(),
-                    false,
-                    *line,
-                    *column,
-                )?;
+                self.current_scope
+                    .borrow_mut()
+                    .define(name.clone(), false, *line, *column)?;
             }
             Statement::ExportDeclaration { .. } => {}
-            Statement::EnumDeclaration { name, line, column, .. } => {
+            Statement::EnumDeclaration {
+                name, line, column, ..
+            } => {
                 if self.struct_defs.contains_key(name) || self.class_defs.contains_key(name) {
                     return Err(CompilerError::DuplicateDeclaration {
                         name: name.clone(),
@@ -673,24 +755,28 @@ impl SemanticAnalyzer {
                     });
                 }
                 // Register enum as a "class" with no fields so constructors resolve.
-                self.class_defs.insert(name.clone(), ClassInfo {
-                    is_abstract: false,
-                    extends: None,
-                    implements: vec![],
-                    fields: HashMap::new(),
-                    methods: HashMap::new(),
-                    line: *line,
-                    column: *column,
-                });
+                self.class_defs.insert(
+                    name.clone(),
+                    ClassInfo {
+                        is_abstract: false,
+                        extends: None,
+                        implements: vec![],
+                        fields: HashMap::new(),
+                        methods: HashMap::new(),
+                    },
+                );
             }
             Statement::MatchStatement { subject, arms, .. } => {
                 self.analyze_expression(subject)?;
                 for arm in arms {
-                    let arm_scope = Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
+                    let arm_scope =
+                        Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
                     // Wildcard / identifier patterns bind a variable in the arm scope.
                     if let crate::ast::MatchPattern::Identifier(binding) = &arm.pattern {
                         if binding != "_" {
-                            arm_scope.borrow_mut().define(binding.clone(), false, 0, 0)?;
+                            arm_scope
+                                .borrow_mut()
+                                .define(binding.clone(), false, 0, 0)?;
                         }
                     }
                     let prev = std::mem::replace(&mut self.current_scope, arm_scope);
@@ -699,7 +785,12 @@ impl SemanticAnalyzer {
                     result?;
                 }
             }
-            Statement::InterfaceDeclaration { name, methods, line, column } => {
+            Statement::InterfaceDeclaration {
+                name,
+                methods,
+                line,
+                column,
+            } => {
                 if self.interface_defs.contains_key(name)
                     || self.class_defs.contains_key(name)
                     || self.struct_defs.contains_key(name)
@@ -716,7 +807,9 @@ impl SemanticAnalyzer {
                 }
                 self.interface_defs.insert(
                     name.clone(),
-                    InterfaceInfo { methods: method_map },
+                    InterfaceInfo {
+                        methods: method_map,
+                    },
                 );
             }
             Statement::SpawnStatement { expression, .. } => {
@@ -745,20 +838,21 @@ impl SemanticAnalyzer {
                 Ok(())
             }
 
-            Expression::Grouping { expression, .. } => {
-                self.analyze_expression(expression)
-            }
+            Expression::Grouping { expression, .. } => self.analyze_expression(expression),
 
-            Expression::UnaryOp { operand, .. } => {
-                self.analyze_expression(operand)
-            }
+            Expression::UnaryOp { operand, .. } => self.analyze_expression(operand),
 
             Expression::BinaryOp { left, right, .. } => {
                 self.analyze_expression(left)?;
                 self.analyze_expression(right)
             }
 
-            Expression::Call { callee, arguments, line, column } => {
+            Expression::Call {
+                callee,
+                arguments,
+                line,
+                column,
+            } => {
                 for argument in arguments {
                     self.analyze_expression(argument)?;
                 }
@@ -768,7 +862,12 @@ impl SemanticAnalyzer {
                 // call on the result of another expression) fall back to
                 // a plain analysis pass, since we don't yet have a type
                 // system to know whether they hold a function value.
-                if let Expression::Identifier { name, line: id_line, column: id_col } = callee.as_ref() {
+                if let Expression::Identifier {
+                    name,
+                    line: id_line,
+                    column: id_col,
+                } = callee.as_ref()
+                {
                     if let Some(class_info) = self.class_defs.get(name) {
                         if class_info.is_abstract {
                             return Err(CompilerError::AbstractClassInstantiation {
@@ -811,7 +910,12 @@ impl SemanticAnalyzer {
                 }
             }
 
-            Expression::StructLiteral { name, fields, line, column } => {
+            Expression::StructLiteral {
+                name,
+                fields,
+                line,
+                column,
+            } => {
                 let declared_fields = self.struct_defs.get(name).cloned().ok_or_else(|| {
                     CompilerError::UnknownStruct {
                         name: name.clone(),
@@ -862,13 +966,20 @@ impl SemanticAnalyzer {
                 Ok(())
             }
 
-            Expression::FieldAccess { object, field, line, column } => {
+            Expression::FieldAccess {
+                object,
+                field,
+                line,
+                column,
+            } => {
                 self.check_object_field_access(object, field, *line, *column)?;
                 self.analyze_expression(object)
             }
             // ── Phase 4+ expressions ──────────────────────────────────
             Expression::ArrayLiteral { elements, .. } => {
-                for el in elements { self.analyze_expression(el)?; }
+                for el in elements {
+                    self.analyze_expression(el)?;
+                }
                 Ok(())
             }
             Expression::IndexExpression { object, index, .. } => {
@@ -876,12 +987,12 @@ impl SemanticAnalyzer {
                 self.analyze_expression(index)
             }
             Expression::EnumVariantExpr { payload, .. } => {
-                if let Some(p) = payload { self.analyze_expression(p)?; }
+                if let Some(p) = payload {
+                    self.analyze_expression(p)?;
+                }
                 Ok(())
             }
-            Expression::PropagateError { expression, .. } => {
-                self.analyze_expression(expression)
-            }
+            Expression::PropagateError { expression, .. } => self.analyze_expression(expression),
             Expression::MoveExpr { name, line, column } => {
                 if self.current_scope.borrow().lookup(name).is_none() {
                     return Err(CompilerError::UndefinedVariable {
@@ -892,9 +1003,7 @@ impl SemanticAnalyzer {
                 }
                 Ok(())
             }
-            Expression::AwaitExpr { expression, .. } => {
-                self.analyze_expression(expression)
-            }
+            Expression::AwaitExpr { expression, .. } => self.analyze_expression(expression),
             Expression::SuperExpr { line, column } => {
                 if self.current_class.is_none() {
                     return Err(CompilerError::InvalidSuper {
