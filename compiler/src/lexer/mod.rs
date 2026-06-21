@@ -222,17 +222,25 @@ impl Lexer {
                     self.advance();
                     self.push(TokenKind::AmpersandAmpersand, "&&", start_line, start_col);
                 } else {
-                    self.push(TokenKind::Ampersand, "&", start_line, start_col);
+                    return Err(CompilerError::UnexpectedCharacter {
+                        character: '&',
+                        line: start_line,
+                        column: start_col,
+                    });
                 }
             }
 
-            // ── PipePipe / Pipe ───────────────────────────────────────
+            // ── PipePipe ──────────────────────────────────────────────
             '|' => {
                 if self.peek() == '|' {
                     self.advance();
                     self.push(TokenKind::PipePipe, "||", start_line, start_col);
                 } else {
-                    self.push(TokenKind::Pipe, "|", start_line, start_col);
+                    return Err(CompilerError::UnexpectedCharacter {
+                        character: '|',
+                        line: start_line,
+                        column: start_col,
+                    });
                 }
             }
 

@@ -124,6 +124,9 @@ impl Parser {
             TokenKind::Break => self.parse_break_statement(),
             TokenKind::Continue => self.parse_continue_statement(),
             TokenKind::Struct => self.parse_struct_declaration(),
+            TokenKind::Abstract if self.check_next(&TokenKind::Class) => {
+                self.parse_class_declaration()
+            }
             TokenKind::Class => self.parse_class_declaration(),
             TokenKind::Interface | TokenKind::Trait => self.parse_interface_declaration(),
             TokenKind::Try => self.parse_try_catch_statement(),

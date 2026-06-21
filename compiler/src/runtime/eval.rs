@@ -141,9 +141,10 @@ impl<W: std::io::Write> Interpreter<W> {
                 )?;
                 Ok(None)
             }
-            Statement::IfStatement { condition, then_branch, else_branch, .. } => {
+            Statement::IfStatement { condition, then_branch, else_branch, line, column } => {
                 let cond = self.eval_expr(condition)?;
-                let branch = if is_truthy(&cond) {
+                let cond_bool = require_bool(cond, "if condition", *line, *column)?;
+                let branch = if cond_bool {
                     Some(then_branch.as_slice())
                 } else {
                     else_branch.as_deref()
@@ -156,10 +157,11 @@ impl<W: std::io::Write> Interpreter<W> {
                 }
                 Ok(None)
             }
-            Statement::WhileStatement { condition, body, .. } => {
+            Statement::WhileStatement { condition, body, line, column } => {
                 loop {
                     let cond = self.eval_expr(condition)?;
-                    if !is_truthy(&cond) { break; }
+                    let cond_bool = require_bool(cond, "while condition", *line, *column)?;
+                    if !cond_bool { break; }
                     let child = Rc::new(RefCell::new(
                         Environment::with_parent(self.environment.clone()),
                     ));
