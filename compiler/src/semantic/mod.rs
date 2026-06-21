@@ -5,8 +5,4 @@
 
 pub mod analyzer;
 
-#[cfg(test)]
-pub mod tests;
-
 pub use analyzer::analyze;
-

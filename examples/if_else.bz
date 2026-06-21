@@ -1,0 +1,29 @@
+// Milestone 6 — Manual verification: if / else / else if
+
+const PASSING = 60
+
+let score = 82
+
+if score >= 90 {
+    print("Excellent!")
+} else if score >= PASSING {
+    print("Passed")
+} else {
+    print("Failed")
+}
+
+let age = 15
+
+if age >= 18 {
+    print("adult")
+} else {
+    print("minor")
+}
+
+// Block scoping: this should work
+let msg = "outer"
+if true {
+    print(msg)
+}
+
+print("done")

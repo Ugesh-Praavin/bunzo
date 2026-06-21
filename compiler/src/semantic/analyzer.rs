@@ -8,7 +8,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::ast::{Expression, Program, Statement};
+use crate::ast::{Block, Expression, Program, Statement};
 use crate::diagnostics::CompilerError;
 
 /// A symbol defined in a lexical scope at compile-time.
@@ -64,11 +64,7 @@ impl Scope {
         column: usize,
     ) -> Result<(), CompilerError> {
         if self.symbols.contains_key(&name) {
-            return Err(CompilerError::DuplicateDeclaration {
-                name,
-                line,
-                column,
-            });
+            return Err(CompilerError::DuplicateDeclaration { name, line, column });
         }
         self.symbols.insert(
             name.clone(),
@@ -130,7 +126,12 @@ impl SemanticAnalyzer {
 
     fn analyze_statement(&mut self, stmt: &Statement) -> Result<(), CompilerError> {
         match stmt {
-            Statement::LetDeclaration { name, initializer, line, column } => {
+            Statement::LetDeclaration {
+                name,
+                initializer,
+                line,
+                column,
+            } => {
                 self.analyze_expression(initializer)?;
                 self.current_scope.borrow_mut().define(
                     name.clone(),
@@ -139,7 +140,12 @@ impl SemanticAnalyzer {
                     *column,
                 )?;
             }
-            Statement::ConstDeclaration { name, initializer, line, column } => {
+            Statement::ConstDeclaration {
+                name,
+                initializer,
+                line,
+                column,
+            } => {
                 self.analyze_expression(initializer)?;
                 self.current_scope.borrow_mut().define(
                     name.clone(),
@@ -148,9 +154,85 @@ impl SemanticAnalyzer {
                     *column,
                 )?;
             }
+            Statement::AssignStatement {
+                name,
+                value,
+                line,
+                column,
+            } => {
+                self.analyze_expression(value)?;
+                let symbol = self.current_scope.borrow().lookup(name);
+                match symbol {
+                    Some(sym) => {
+                        if sym.is_const {
+                            return Err(CompilerError::ConstReassignment {
+                                name: name.clone(),
+                                line: *line,
+                                column: *column,
+                            });
+                        }
+                    }
+                    None => {
+                        return Err(CompilerError::UndefinedVariable {
+                            name: name.clone(),
+                            line: *line,
+                            column: *column,
+                        });
+                    }
+                }
+            }
             Statement::PrintStatement { argument, .. } => {
                 self.analyze_expression(argument)?;
             }
+            Statement::IfStatement {
+                condition,
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                self.analyze_expression(condition)?;
+                self.analyze_block(then_branch)?;
+                if let Some(else_blk) = else_branch {
+                    self.analyze_block(else_blk)?;
+                }
+            }
+            Statement::WhileStatement {
+                condition, body, ..
+            } => {
+                self.analyze_expression(condition)?;
+                self.analyze_block(body)?;
+            }
+            Statement::ForInStatement {
+                variable,
+                iterable,
+                body,
+                line,
+                column,
+            } => {
+                self.analyze_expression(iterable)?;
+
+                // ForInStatement's loop variable is scoped to a child scope.
+                let child_scope = Rc::new(RefCell::new(Scope::with_parent(Rc::clone(
+                    &self.current_scope,
+                ))));
+                child_scope.borrow_mut().define(
+                    variable.clone(),
+                    false, // is_const = false (loop variables are reassignable inside the body)
+                    *line,
+                    *column,
+                )?;
+
+                let saved = Rc::clone(&self.current_scope);
+                self.current_scope = child_scope;
+
+                for stmt in &body.statements {
+                    self.analyze_statement(stmt)?;
+                }
+
+                self.current_scope = saved;
+            }
+            Statement::Break { .. } => {}
+            Statement::Continue { .. } => {}
             Statement::ExpressionStatement { expression } => {
                 self.analyze_expression(expression)?;
             }
@@ -177,18 +259,38 @@ impl SemanticAnalyzer {
                 Ok(())
             }
 
-            Expression::Grouping { expression, .. } => {
-                self.analyze_expression(expression)
-            }
+            Expression::Grouping { expression, .. } => self.analyze_expression(expression),
 
-            Expression::UnaryOp { operand, .. } => {
-                self.analyze_expression(operand)
-            }
+            Expression::UnaryOp { operand, .. } => self.analyze_expression(operand),
 
             Expression::BinaryOp { left, right, .. } => {
                 self.analyze_expression(left)?;
                 self.analyze_expression(right)
             }
+
+            Expression::Range { start, end, .. } => {
+                self.analyze_expression(start)?;
+                self.analyze_expression(end)
+            }
         }
+    }
+
+    /// Analyzes a block in a fresh child scope.
+    ///
+    /// Opens a new scope, analyzes all statements, then restores the parent scope.
+    fn analyze_block(&mut self, block: &Block) -> Result<(), CompilerError> {
+        let child_scope = Rc::new(RefCell::new(Scope::with_parent(Rc::clone(
+            &self.current_scope,
+        ))));
+        let saved = Rc::clone(&self.current_scope);
+        self.current_scope = child_scope;
+
+        for stmt in &block.statements {
+            self.analyze_statement(stmt)?;
+        }
+
+        // Restore parent scope.
+        self.current_scope = saved;
+        Ok(())
     }
 }

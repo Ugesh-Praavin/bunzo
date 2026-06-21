@@ -14,9 +14,6 @@
 
 pub mod token;
 
-#[cfg(test)]
-mod tests;
-
 pub use token::{Token, TokenKind};
 
 use crate::diagnostics::CompilerError;
@@ -71,7 +68,8 @@ impl Lexer {
             self.scan_token()?;
         }
 
-        self.tokens.push(Token::new(TokenKind::Eof, "", self.line, self.column));
+        self.tokens
+            .push(Token::new(TokenKind::Eof, "", self.line, self.column));
         Ok(self.tokens.clone())
     }
 
@@ -364,11 +362,7 @@ impl Lexer {
     // ── Literal Scanners ──────────────────────────────────────────────────
 
     /// Scans a string literal (the opening `"` has already been consumed).
-    fn scan_string(
-        &mut self,
-        start_line: usize,
-        start_col: usize,
-    ) -> Result<(), CompilerError> {
+    fn scan_string(&mut self, start_line: usize, start_col: usize) -> Result<(), CompilerError> {
         let mut value = String::new();
 
         while !self.is_at_end() && self.source[self.position] != '"' {

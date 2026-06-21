@@ -4,8 +4,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::diagnostics::CompilerError;
 use super::value::RuntimeValue;
+use crate::diagnostics::CompilerError;
 
 /// Holds a single variable binding in an environment.
 #[derive(Debug, Clone, PartialEq)]
@@ -59,13 +59,10 @@ impl Environment {
         column: usize,
     ) -> Result<(), CompilerError> {
         if self.bindings.contains_key(&name) {
-            return Err(CompilerError::DuplicateDeclaration {
-                name,
-                line,
-                column,
-            });
+            return Err(CompilerError::DuplicateDeclaration { name, line, column });
         }
-        self.bindings.insert(name, VariableBinding { value, is_const });
+        self.bindings
+            .insert(name, VariableBinding { value, is_const });
         Ok(())
     }
 
@@ -74,7 +71,12 @@ impl Environment {
     /// # Errors
     ///
     /// Returns a [`CompilerError::UndefinedVariable`] if the variable cannot be found.
-    pub fn get(&self, name: &str, line: usize, column: usize) -> Result<RuntimeValue, CompilerError> {
+    pub fn get(
+        &self,
+        name: &str,
+        line: usize,
+        column: usize,
+    ) -> Result<RuntimeValue, CompilerError> {
         if let Some(binding) = self.bindings.get(name) {
             return Ok(binding.value.clone());
         }
@@ -103,11 +105,7 @@ impl Environment {
     ) -> Result<(), CompilerError> {
         if let Some(binding) = self.bindings.get_mut(&name) {
             if binding.is_const {
-                return Err(CompilerError::ConstReassignment {
-                    name,
-                    line,
-                    column,
-                });
+                return Err(CompilerError::ConstReassignment { name, line, column });
             }
             binding.value = value;
             return Ok(());
@@ -115,11 +113,7 @@ impl Environment {
         if let Some(parent) = &self.parent {
             return parent.borrow_mut().assign(name, value, line, column);
         }
-        Err(CompilerError::UndefinedVariable {
-            name,
-            line,
-            column,
-        })
+        Err(CompilerError::UndefinedVariable { name, line, column })
     }
 }
 
