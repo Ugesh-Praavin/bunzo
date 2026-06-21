@@ -192,3 +192,36 @@ fn test_duplicate_declaration_let_const() {
     let err = result.unwrap_err();
     assert!(matches!(err, CompilerError::DuplicateDeclaration { .. }));
 }
+
+#[test]
+fn test_semantic_module_imports() {
+    std::fs::write(
+        "temp_module.bz",
+        "export func greet() {}\nfunc private_helper() {}\n",
+    )
+    .unwrap();
+
+    let tokens = bzc::lexer::tokenize("import temp_module\ntemp_module.greet()").unwrap();
+    let program = bzc::parser::parse(tokens).unwrap();
+    let result = bzc::semantic::analyze(&program);
+    assert!(
+        result.is_ok(),
+        "Expected valid module import semantic analysis to pass, got: {:?}",
+        result
+    );
+
+    let tokens_invalid =
+        bzc::lexer::tokenize("import temp_module\ntemp_module.private_helper()").unwrap();
+    let program_invalid = bzc::parser::parse(tokens_invalid).unwrap();
+    let result_invalid = bzc::semantic::analyze(&program_invalid);
+    assert!(
+        result_invalid.is_err(),
+        "Expected error for unexported member access"
+    );
+    assert!(matches!(
+        result_invalid.unwrap_err(),
+        CompilerError::UnexportedMemberAccess { .. }
+    ));
+
+    let _ = std::fs::remove_file("temp_module.bz");
+}

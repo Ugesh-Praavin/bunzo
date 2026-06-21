@@ -1181,11 +1181,51 @@ impl TypeChecker {
                 self.check_expr(value)?;
                 Ok(())
             }
-            Statement::ImportDeclaration { name, .. } => {
+            Statement::ImportDeclaration {
+                name,
+                path,
+                line,
+                column,
+            } => {
+                let builtins = ["math", "json", "http", "db", "os"];
+                if builtins.contains(&name.as_str()) {
+                    self.env.borrow_mut().define(name.clone(), Type::Any);
+                    return Ok(());
+                }
+
+                let candidates: Vec<String> = if let Some(p) = path {
+                    vec![if p.ends_with(".bz") {
+                        p.clone()
+                    } else {
+                        format!("{p}.bz")
+                    }]
+                } else {
+                    vec![format!("{name}.bz"), format!("stdlib/{name}.bz")]
+                };
+
+                let source = candidates
+                    .iter()
+                    .find_map(|file_path| std::fs::read_to_string(file_path).ok())
+                    .ok_or_else(|| CompilerError::ModuleNotFound {
+                        name: name.clone(),
+                        line: *line,
+                        column: *column,
+                    })?;
+
+                let tokens = crate::lexer::tokenize(&source)?;
+                let program = crate::parser::parse(tokens)?;
+
+                crate::typechecker::check(&program)?;
+
                 self.env.borrow_mut().define(name.clone(), Type::Any);
                 Ok(())
             }
-            Statement::ExportDeclaration { .. } => Ok(()),
+            Statement::ExportDeclaration { declaration, .. } => {
+                if let Some(decl) = declaration {
+                    self.check_statement(decl)?;
+                }
+                Ok(())
+            }
             Statement::EnumDeclaration { name, .. } => {
                 self.env
                     .borrow_mut()

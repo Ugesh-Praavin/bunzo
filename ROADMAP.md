@@ -20,7 +20,7 @@
 * Type Checker
 * Error Handling
 
-## v0.6.0
+## v0.6.0 (Completed)
 * Modules
 
 ## v1.0.0

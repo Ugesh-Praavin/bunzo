@@ -270,6 +270,14 @@ pub enum CompilerError {
         column: usize,
     },
 
+    /// Attempt to access a member of a module that is not exported (BZ1028).
+    UnexportedMemberAccess {
+        module_name: String,
+        member: String,
+        line: usize,
+        column: usize,
+    },
+
     /// Array index out of bounds (BZ1020).
     IndexOutOfBounds {
         index: i64,
@@ -543,6 +551,17 @@ impl fmt::Display for CompilerError {
                 write!(
                     f,
                     "error[BZ1019]\n\nModule \"{name}\" not found\n  --> line {line}, column {column}",
+                )
+            }
+            CompilerError::UnexportedMemberAccess {
+                module_name,
+                member,
+                line,
+                column,
+            } => {
+                write!(
+                    f,
+                    "error[BZ1028]\n\nMember \"{member}\" is not exported by module \"{module_name}\"\n  --> line {line}, column {column}",
                 )
             }
             CompilerError::IndexOutOfBounds {

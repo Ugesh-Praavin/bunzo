@@ -463,7 +463,15 @@ impl<W: std::io::Write> Interpreter<W> {
                 line,
                 column,
             } => self.exec_import(name, path.as_deref(), *line, *column),
-            Statement::ExportDeclaration { .. } => Ok(None), // export is metadata; no runtime effect
+            Statement::ExportDeclaration {
+                name, declaration, ..
+            } => {
+                if let Some(decl) = declaration {
+                    self.exec_stmt(decl)?;
+                }
+                self.environment.borrow_mut().mark_exported(name);
+                Ok(None)
+            }
             Statement::EnumDeclaration {
                 name,
                 variants,

@@ -589,3 +589,26 @@ fn test_const_reassignment_in_environment() {
     let err = env.assign("PI".to_string(), RuntimeValue::Float(3.15), 2, 1);
     assert!(matches!(err, Err(CompilerError::ConstReassignment { .. })));
 }
+
+#[test]
+fn test_runtime_module_imports() {
+    std::fs::write(
+        "temp_runtime_module.bz",
+        "export let version = 6\nexport func multiply(a: int, b: int) -> int { return a * b }\n",
+    )
+    .unwrap();
+
+    let tokens = bzc::lexer::tokenize("import temp_runtime_module\nprint(temp_runtime_module.version)\nprint(temp_runtime_module.multiply(3, 4))\n").unwrap();
+    let program = bzc::parser::parse(tokens).unwrap();
+    bzc::semantic::analyze(&program).unwrap();
+    bzc::typechecker::check(&program).unwrap();
+
+    let mut buffer = Vec::new();
+    let mut interpreter = Interpreter::new(&mut buffer);
+    interpreter.interpret(program).unwrap();
+    let out = String::from_utf8(buffer).unwrap();
+
+    assert_eq!(out, "6\n12\n");
+
+    let _ = std::fs::remove_file("temp_runtime_module.bz");
+}
