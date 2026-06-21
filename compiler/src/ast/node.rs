@@ -17,6 +17,21 @@ pub struct Program {
     pub statements: Vec<Statement>,
 }
 
+// ── Block ─────────────────────────────────────────────────────────────────
+
+/// A sequence of statements enclosed in `{ }`.
+///
+/// Blocks are used as the body of `if`, `else`, `while`, and `for` constructs.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Block {
+    /// The statements inside the block, in source order.
+    pub statements: Vec<Statement>,
+    /// Line of the opening `{`.
+    pub line: usize,
+    /// Column of the opening `{`.
+    pub column: usize,
+}
+
 // ── Statements ────────────────────────────────────────────────────────────
 
 /// A single statement in a Bunzo program.
@@ -57,6 +72,80 @@ pub enum Statement {
         /// Line where the `print` keyword appears.
         line: usize,
         /// Column where the `print` keyword appears.
+        column: usize,
+    },
+
+    /// `if condition { then_branch } else { else_branch }` — conditional execution.
+    ///
+    /// `else_branch` is `None` when there is no `else` clause.
+    /// `else if` chains are represented as an `else_branch` whose `statements`
+    /// contains a single nested `IfStatement`.
+    IfStatement {
+        /// The boolean condition expression.
+        condition: Expression,
+        /// Statements executed when the condition is truthy.
+        then_branch: Block,
+        /// Statements executed when the condition is falsy (optional).
+        else_branch: Option<Block>,
+        /// Line where the `if` keyword appears.
+        line: usize,
+        /// Column where the `if` keyword appears.
+        column: usize,
+    },
+
+    /// `while condition { body }` — loops while condition is true.
+    WhileStatement {
+        /// The boolean condition expression, re-evaluated each iteration.
+        condition: Expression,
+        /// The loop body.
+        body: Block,
+        /// Line where the `while` keyword appears.
+        line: usize,
+        /// Column where the `while` keyword appears.
+        column: usize,
+    },
+
+    /// `for variable in iterable { body }` — iterates over a range.
+    ///
+    /// The loop variable is scoped to the body block.
+    ForInStatement {
+        /// The loop variable name (e.g. `i` in `for i in 0..10`).
+        variable: String,
+        /// The iterable expression. Currently only `Range` is supported.
+        iterable: Expression,
+        /// The loop body.
+        body: Block,
+        /// Line where the `for` keyword appears.
+        line: usize,
+        /// Column where the `for` keyword appears.
+        column: usize,
+    },
+
+    /// `name = expression` — reassign an existing mutable variable.
+    AssignStatement {
+        /// The variable being assigned to.
+        name: String,
+        /// The new value expression.
+        value: Expression,
+        /// Line of the identifier.
+        line: usize,
+        /// Column of the identifier.
+        column: usize,
+    },
+
+    /// `break` — exits the nearest enclosing loop.
+    Break {
+        /// Line where `break` appears.
+        line: usize,
+        /// Column where `break` appears.
+        column: usize,
+    },
+
+    /// `continue` — skips the rest of the current loop iteration.
+    Continue {
+        /// Line where `continue` appears.
+        line: usize,
+        /// Column where `continue` appears.
         column: usize,
     },
 
@@ -101,10 +190,7 @@ pub enum Expression {
     },
 
     /// The `null` literal.
-    NullLiteral {
-        line: usize,
-        column: usize,
-    },
+    NullLiteral { line: usize, column: usize },
 
     /// A variable reference, e.g. `x`.
     Identifier {
@@ -140,6 +226,22 @@ pub enum Expression {
         /// Line of the opening `(`.
         line: usize,
         /// Column of the opening `(`.
+        column: usize,
+    },
+
+    /// An integer range expression, e.g. `0..10` or `0..=10`.
+    ///
+    /// Used as the iterable in `for x in start..end` loops.
+    Range {
+        /// The inclusive start of the range.
+        start: Box<Expression>,
+        /// The exclusive end of the range (`..`) or inclusive end (`..=`).
+        end: Box<Expression>,
+        /// `false` for `..` (exclusive end), `true` for `..=` (inclusive end).
+        inclusive: bool,
+        /// Line of the `..` operator.
+        line: usize,
+        /// Column of the `..` operator.
         column: usize,
     },
 }

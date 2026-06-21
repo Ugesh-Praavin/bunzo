@@ -7,8 +7,4 @@ pub mod environment;
 pub mod eval;
 pub mod value;
 
-#[cfg(test)]
-pub mod tests;
-
 pub use eval::execute;
-

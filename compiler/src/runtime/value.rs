@@ -15,6 +15,15 @@ pub enum RuntimeValue {
     Boolean(bool),
     /// The `null` value.
     Null,
+    /// A range value (start..end or start..=end).
+    Range {
+        /// The start of the range (inclusive).
+        start: i64,
+        /// The end of the range.
+        end: i64,
+        /// Whether the end is inclusive.
+        inclusive: bool,
+    },
 }
 
 impl RuntimeValue {
@@ -26,6 +35,7 @@ impl RuntimeValue {
             RuntimeValue::String(_) => "String",
             RuntimeValue::Boolean(_) => "Boolean",
             RuntimeValue::Null => "Null",
+            RuntimeValue::Range { .. } => "Range",
         }
     }
 }
@@ -38,6 +48,17 @@ impl fmt::Display for RuntimeValue {
             RuntimeValue::String(val) => write!(f, "{val}"),
             RuntimeValue::Boolean(val) => write!(f, "{val}"),
             RuntimeValue::Null => write!(f, "null"),
+            RuntimeValue::Range {
+                start,
+                end,
+                inclusive,
+            } => {
+                if *inclusive {
+                    write!(f, "{start}..={end}")
+                } else {
+                    write!(f, "{start}..{end}")
+                }
+            }
         }
     }
 }

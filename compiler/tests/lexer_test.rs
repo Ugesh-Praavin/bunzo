@@ -5,7 +5,7 @@
 //!
 //! Target: 100+ individual test functions as required by the build plan.
 
-use super::*;
+use bzc::lexer::*;
 
 // ── Test Helpers ──────────────────────────────────────────────────────────
 
@@ -513,10 +513,7 @@ fn comment_single_line_only() {
 
 #[test]
 fn comment_single_line_before_code() {
-    assert_token_kinds(
-        "// comment\nlet",
-        &[TokenKind::Let, TokenKind::Eof],
-    );
+    assert_token_kinds("// comment\nlet", &[TokenKind::Let, TokenKind::Eof]);
 }
 
 #[test]
@@ -528,10 +525,7 @@ fn comment_block_only() {
 
 #[test]
 fn comment_block_multiline() {
-    assert_token_kinds(
-        "/* line1\nline2 */\nlet",
-        &[TokenKind::Let, TokenKind::Eof],
-    );
+    assert_token_kinds("/* line1\nline2 */\nlet", &[TokenKind::Let, TokenKind::Eof]);
 }
 
 #[test]

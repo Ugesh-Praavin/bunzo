@@ -51,11 +51,11 @@ Bunzo is being built with the following planned capabilities:
 
 | Feature                  | Status       |
 | ------------------------ | ------------ |
-| Lexer                    | 🚧 In Progress |
-| Parser                   | 🚧 In Progress |
-| Abstract Syntax Tree     | 🚧 In Progress |
-| Interpreter              | 📋 Planned   |
-| Semantic Analysis        | 📋 Planned   |
+| Lexer                    | ✅ Complete   |
+| Parser                   | ✅ Complete   |
+| Abstract Syntax Tree     | ✅ Complete   |
+| Interpreter              | ✅ Complete   |
+| Semantic Analysis        | ✅ Complete   |
 | Type Checker             | 📋 Planned   |
 | IR Generation            | 📋 Planned   |
 | Standard Library         | 📋 Planned   |
@@ -187,13 +187,13 @@ cargo clippy -- -D warnings
 
 ### Phase 1 — Core Compiler *(Current)*
 - [x] Project foundation and architecture
-- [ ] Lexer
-- [ ] Parser
-- [ ] AST
-- [ ] Interpreter
+- [x] Lexer
+- [x] Parser
+- [x] AST
+- [x] Interpreter
 
 ### Phase 2 — Language Features
-- [ ] Semantic analysis
+- [x] Semantic analysis
 - [ ] Type checker
 - [ ] Standard library
 - [ ] Module system

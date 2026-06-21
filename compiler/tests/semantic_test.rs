@@ -1,8 +1,8 @@
 //! Unit tests for static semantic analysis.
 
-use crate::ast::{BinaryOperator, Expression, Program, Statement};
-use crate::diagnostics::CompilerError;
-use super::analyzer::analyze;
+use bzc::ast::{BinaryOperator, Expression, Program, Statement};
+use bzc::diagnostics::CompilerError;
+use bzc::semantic::analyze;
 
 #[test]
 fn test_valid_program() {
@@ -10,21 +10,37 @@ fn test_valid_program() {
         statements: vec![
             Statement::LetDeclaration {
                 name: "x".to_string(),
-                initializer: Expression::IntegerLiteral { value: 10, line: 1, column: 9 },
+                initializer: Expression::IntegerLiteral {
+                    value: 10,
+                    line: 1,
+                    column: 9,
+                },
                 line: 1,
                 column: 1,
             },
             Statement::ConstDeclaration {
                 name: "Y".to_string(),
-                initializer: Expression::Identifier { name: "x".to_string(), line: 2, column: 13 },
+                initializer: Expression::Identifier {
+                    name: "x".to_string(),
+                    line: 2,
+                    column: 13,
+                },
                 line: 2,
                 column: 1,
             },
             Statement::PrintStatement {
                 argument: Expression::BinaryOp {
                     operator: BinaryOperator::Add,
-                    left: Box::new(Expression::Identifier { name: "x".to_string(), line: 3, column: 7 }),
-                    right: Box::new(Expression::Identifier { name: "Y".to_string(), line: 3, column: 11 }),
+                    left: Box::new(Expression::Identifier {
+                        name: "x".to_string(),
+                        line: 3,
+                        column: 7,
+                    }),
+                    right: Box::new(Expression::Identifier {
+                        name: "Y".to_string(),
+                        line: 3,
+                        column: 11,
+                    }),
                     line: 3,
                     column: 9,
                 },
@@ -40,14 +56,16 @@ fn test_valid_program() {
 #[test]
 fn test_undefined_variable_in_let_initializer() {
     let program = Program {
-        statements: vec![
-            Statement::LetDeclaration {
-                name: "x".to_string(),
-                initializer: Expression::Identifier { name: "undefined_var".to_string(), line: 1, column: 9 },
+        statements: vec![Statement::LetDeclaration {
+            name: "x".to_string(),
+            initializer: Expression::Identifier {
+                name: "undefined_var".to_string(),
                 line: 1,
-                column: 1,
+                column: 9,
             },
-        ],
+            line: 1,
+            column: 1,
+        }],
     };
 
     let result = analyze(&program);
@@ -65,14 +83,16 @@ fn test_undefined_variable_in_let_initializer() {
 #[test]
 fn test_undefined_variable_in_const_initializer() {
     let program = Program {
-        statements: vec![
-            Statement::ConstDeclaration {
-                name: "PI".to_string(),
-                initializer: Expression::Identifier { name: "undefined_var".to_string(), line: 1, column: 12 },
+        statements: vec![Statement::ConstDeclaration {
+            name: "PI".to_string(),
+            initializer: Expression::Identifier {
+                name: "undefined_var".to_string(),
                 line: 1,
-                column: 1,
+                column: 12,
             },
-        ],
+            line: 1,
+            column: 1,
+        }],
     };
 
     let result = analyze(&program);
@@ -84,13 +104,15 @@ fn test_undefined_variable_in_const_initializer() {
 #[test]
 fn test_undefined_variable_in_print() {
     let program = Program {
-        statements: vec![
-            Statement::PrintStatement {
-                argument: Expression::Identifier { name: "x".to_string(), line: 1, column: 7 },
+        statements: vec![Statement::PrintStatement {
+            argument: Expression::Identifier {
+                name: "x".to_string(),
                 line: 1,
-                column: 1,
+                column: 7,
             },
-        ],
+            line: 1,
+            column: 1,
+        }],
     };
 
     let result = analyze(&program);
@@ -105,13 +127,21 @@ fn test_duplicate_declaration_let_let() {
         statements: vec![
             Statement::LetDeclaration {
                 name: "x".to_string(),
-                initializer: Expression::IntegerLiteral { value: 1, line: 1, column: 9 },
+                initializer: Expression::IntegerLiteral {
+                    value: 1,
+                    line: 1,
+                    column: 9,
+                },
                 line: 1,
                 column: 1,
             },
             Statement::LetDeclaration {
                 name: "x".to_string(),
-                initializer: Expression::IntegerLiteral { value: 2, line: 2, column: 9 },
+                initializer: Expression::IntegerLiteral {
+                    value: 2,
+                    line: 2,
+                    column: 9,
+                },
                 line: 2,
                 column: 1,
             },
@@ -136,13 +166,21 @@ fn test_duplicate_declaration_let_const() {
         statements: vec![
             Statement::LetDeclaration {
                 name: "x".to_string(),
-                initializer: Expression::IntegerLiteral { value: 1, line: 1, column: 9 },
+                initializer: Expression::IntegerLiteral {
+                    value: 1,
+                    line: 1,
+                    column: 9,
+                },
                 line: 1,
                 column: 1,
             },
             Statement::ConstDeclaration {
                 name: "x".to_string(),
-                initializer: Expression::IntegerLiteral { value: 2, line: 2, column: 11 },
+                initializer: Expression::IntegerLiteral {
+                    value: 2,
+                    line: 2,
+                    column: 11,
+                },
                 line: 2,
                 column: 1,
             },

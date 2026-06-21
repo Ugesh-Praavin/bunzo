@@ -5,6 +5,4 @@
 
 pub mod node;
 
-pub use node::{
-    BinaryOperator, Expression, Program, Statement, UnaryOperator,
-};
+pub use node::{BinaryOperator, Block, Expression, Program, Statement, UnaryOperator};
