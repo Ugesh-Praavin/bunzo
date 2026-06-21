@@ -36,7 +36,7 @@ To run a program:
 
 ## Language Syntax
 
-Here is an overview of the features currently supported in Bunzo v0.5.0:
+Here is an overview of the features currently supported in Bunzo v0.6.0:
 
 ### 1. Comments
 

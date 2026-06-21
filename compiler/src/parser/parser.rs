@@ -600,18 +600,70 @@ impl Parser {
         })
     }
 
-    /// Parses `export name`.
+    /// Parses `export name` or `export func ...`.
     fn parse_export_declaration(&mut self) -> Result<Statement, CompilerError> {
         let keyword = self.advance();
         let line = keyword.line;
         let column = keyword.column;
 
-        let name_token = self.expect(TokenKind::Identifier, "export name")?;
-        Ok(Statement::ExportDeclaration {
-            name: name_token.lexeme,
-            line,
-            column,
-        })
+        let next_kind = &self.peek().kind;
+        let is_decl = match next_kind {
+            TokenKind::Let
+            | TokenKind::Var
+            | TokenKind::Const
+            | TokenKind::Func
+            | TokenKind::Struct
+            | TokenKind::Class
+            | TokenKind::Interface
+            | TokenKind::Trait => true,
+            TokenKind::Abstract => self.check_next(&TokenKind::Class),
+            _ => false,
+        };
+
+        if is_decl {
+            let decl_stmt = match self.peek().kind {
+                TokenKind::Let | TokenKind::Var => self.parse_let_declaration()?,
+                TokenKind::Const => self.parse_const_declaration()?,
+                TokenKind::Func => self.parse_function_declaration()?,
+                TokenKind::Struct => self.parse_struct_declaration()?,
+                TokenKind::Class => self.parse_class_declaration()?,
+                TokenKind::Abstract => self.parse_class_declaration()?,
+                TokenKind::Interface | TokenKind::Trait => self.parse_interface_declaration()?,
+                _ => unreachable!(),
+            };
+
+            let name = match &decl_stmt {
+                Statement::LetDeclaration { name, .. } => name.clone(),
+                Statement::ConstDeclaration { name, .. } => name.clone(),
+                Statement::FunctionDeclaration { name, .. } => name.clone(),
+                Statement::StructDeclaration { name, .. } => name.clone(),
+                Statement::ClassDeclaration { name, .. } => name.clone(),
+                Statement::InterfaceDeclaration { name, .. } => name.clone(),
+                _ => {
+                    return Err(CompilerError::UnexpectedToken {
+                        expected: "declaration statement".to_string(),
+                        found: format!("{:?}", self.peek()),
+                        line,
+                        column,
+                    });
+                }
+            };
+
+            Ok(Statement::ExportDeclaration {
+                name,
+                declaration: Some(Box::new(decl_stmt)),
+                line,
+                column,
+            })
+        } else {
+            let name_token = self.expect(TokenKind::Identifier, "export name")?;
+            Ok(Statement::ExportDeclaration {
+                name: name_token.lexeme,
+                declaration: None,
+                line,
+                column,
+            })
+        }
     }
 
     /// Parses `let name = expression`.

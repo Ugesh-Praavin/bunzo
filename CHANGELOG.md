@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.6.0] - 2026-06-21
+
+### Added
+* Support for User-defined Modules (multi-file projects)
+* Inline export declarations (`export func`, `export let`, `export class`, etc.)
+* Static compile-time recursive module analysis and type checking
+* Validation of exported module member accesses at compile-time
+* Cycle dependency checking for circular imports
+
 ## [v0.5.0] - 2026-06-21
 
 ### Added

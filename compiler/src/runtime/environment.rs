@@ -85,6 +85,13 @@ impl Environment {
         Ok(())
     }
 
+    /// Mark an existing binding as exported in this scope.
+    pub fn mark_exported(&mut self, name: &str) {
+        if let Some(b) = self.bindings.get_mut(name) {
+            b.exported = true;
+        }
+    }
+
     /// Get a value, traversing parent scopes.
     pub fn get(
         &self,

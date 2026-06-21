@@ -971,3 +971,43 @@ fn tracking_expression_position() {
         other => panic!("expected IntegerLiteral, got {other:?}"),
     }
 }
+
+#[test]
+fn test_parse_export_declarations() {
+    let stmt1 = first_stmt("export x");
+    assert!(
+        matches!(stmt1, Statement::ExportDeclaration { ref name, declaration: None, .. } if name == "x")
+    );
+
+    let stmt2 = first_stmt("export func hello() {}");
+    if let Statement::ExportDeclaration {
+        name,
+        declaration: Some(decl),
+        ..
+    } = stmt2
+    {
+        assert_eq!(name, "hello");
+        assert!(matches!(*decl, Statement::FunctionDeclaration { .. }));
+    } else {
+        panic!(
+            "expected ExportDeclaration with inner declaration, got {:?}",
+            stmt2
+        );
+    }
+
+    let stmt3 = first_stmt("export let status = 200");
+    if let Statement::ExportDeclaration {
+        name,
+        declaration: Some(decl),
+        ..
+    } = stmt3
+    {
+        assert_eq!(name, "status");
+        assert!(matches!(*decl, Statement::LetDeclaration { .. }));
+    } else {
+        panic!(
+            "expected ExportDeclaration with inner declaration, got {:?}",
+            stmt3
+        );
+    }
+}

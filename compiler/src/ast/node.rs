@@ -318,6 +318,8 @@ pub enum Statement {
     ExportDeclaration {
         /// The name being exported.
         name: String,
+        /// Optional inner declaration statement.
+        declaration: Option<Box<Statement>>,
         line: usize,
         column: usize,
     },

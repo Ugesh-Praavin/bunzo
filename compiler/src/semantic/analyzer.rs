@@ -182,6 +182,8 @@ struct SemanticAnalyzer {
     struct_defs: HashMap<String, Vec<String>>,
     class_defs: HashMap<String, ClassInfo>,
     interface_defs: HashMap<String, InterfaceInfo>,
+    analyzed_modules: HashMap<String, HashSet<String>>,
+    active_imports: HashSet<String>,
 }
 
 impl SemanticAnalyzer {
@@ -198,7 +200,7 @@ impl SemanticAnalyzer {
             // We handle it as a special case in the runtime.
             let _ = mut_scope.define_function("input".to_string(), 0, 1, 1);
         }
-        Self {
+        let mut analyzer = Self {
             current_scope: global_scope,
             in_function: false,
             loop_depth: 0,
@@ -206,7 +208,46 @@ impl SemanticAnalyzer {
             struct_defs: HashMap::new(),
             class_defs: HashMap::new(),
             interface_defs: HashMap::new(),
-        }
+            analyzed_modules: HashMap::new(),
+            active_imports: HashSet::new(),
+        };
+        // Pre-populate standard library module exports
+        analyzer.analyzed_modules.insert(
+            "math".to_string(),
+            vec!["sqrt", "abs", "sin", "cos", "pow", "PI", "E"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "json".to_string(),
+            vec!["encode", "decode"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "http".to_string(),
+            vec!["get", "post", "put", "delete", "patch"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "db".to_string(),
+            vec!["open", "execute", "query", "close"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "os".to_string(),
+            vec!["args", "env", "exit"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer
     }
 
     fn abstract_methods_inherited(&self, parent: &str) -> HashSet<String> {
@@ -262,6 +303,16 @@ impl SemanticAnalyzer {
             if name == "this" {
                 if let Some(class_name) = &self.current_class {
                     self.check_field_visibility(class_name, field, line, column)?;
+                }
+            } else if self.analyzed_modules.contains_key(name) {
+                let exports = self.analyzed_modules.get(name).unwrap();
+                if !exports.contains(field) {
+                    return Err(CompilerError::UnexportedMemberAccess {
+                        module_name: name.clone(),
+                        member: field.to_string(),
+                        line,
+                        column,
+                    });
                 }
             }
         }
@@ -734,16 +785,85 @@ impl SemanticAnalyzer {
             Statement::Throw { value, .. } => {
                 self.analyze_expression(value)?;
             }
-            // ── Phase 4+ statements ───────────────────────────────────
             Statement::ImportDeclaration {
-                name, line, column, ..
+                name,
+                path,
+                line,
+                column,
             } => {
-                // Bind the module name so `http.get`-style field access type-checks.
+                if !self.analyzed_modules.contains_key(name) {
+                    let candidates: Vec<String> = if let Some(p) = path {
+                        vec![if p.ends_with(".bz") {
+                            p.clone()
+                        } else {
+                            format!("{p}.bz")
+                        }]
+                    } else {
+                        vec![format!("{name}.bz"), format!("stdlib/{name}.bz")]
+                    };
+
+                    let source = candidates
+                        .iter()
+                        .find_map(|file_path| std::fs::read_to_string(file_path).ok())
+                        .ok_or_else(|| CompilerError::ModuleNotFound {
+                            name: name.clone(),
+                            line: *line,
+                            column: *column,
+                        })?;
+
+                    if self.active_imports.contains(name) {
+                        return Err(CompilerError::RuntimeException {
+                            message: format!("Circular dependency detected for module '{}'", name),
+                            line: *line,
+                            column: *column,
+                        });
+                    }
+
+                    let tokens = crate::lexer::tokenize(&source)?;
+                    let program = crate::parser::parse(tokens)?;
+
+                    let mut sub_analyzer = SemanticAnalyzer::new();
+                    sub_analyzer.analyzed_modules = self.analyzed_modules.clone();
+                    sub_analyzer.active_imports = self.active_imports.clone();
+                    sub_analyzer.active_imports.insert(name.clone());
+
+                    sub_analyzer.analyze_program(&program)?;
+
+                    for (mod_name, mod_exports) in sub_analyzer.analyzed_modules {
+                        self.analyzed_modules.insert(mod_name, mod_exports);
+                    }
+
+                    let mut exports = HashSet::new();
+                    for stmt in &program.statements {
+                        if let Statement::ExportDeclaration { name: exp_name, .. } = stmt {
+                            exports.insert(exp_name.clone());
+                        }
+                    }
+                    self.analyzed_modules.insert(name.clone(), exports);
+                }
+
                 self.current_scope
                     .borrow_mut()
                     .define(name.clone(), false, *line, *column)?;
             }
-            Statement::ExportDeclaration { .. } => {}
+            Statement::ExportDeclaration {
+                name,
+                declaration,
+                line,
+                column,
+            } => {
+                if let Some(decl) = declaration {
+                    self.analyze_statement(decl)?;
+                } else {
+                    if self.current_scope.borrow().lookup(name).is_none() {
+                        return Err(CompilerError::UndefinedVariable {
+                            name: name.clone(),
+                            line: *line,
+                            column: *column,
+                        });
+                    }
+                }
+            }
             Statement::EnumDeclaration {
                 name, line, column, ..
             } => {

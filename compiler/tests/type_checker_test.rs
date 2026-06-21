@@ -302,3 +302,26 @@ fn test_typechecker_interface_subtyping() {
         result
     );
 }
+
+#[test]
+fn test_typechecker_module_imports() {
+    std::fs::write(
+        "temp_tc_module.bz",
+        "export func double(x: int) -> int { return x * 2 }\n",
+    )
+    .unwrap();
+
+    let result = check_source(
+        r#"
+        import temp_tc_module
+        let result = temp_tc_module.double(10)
+        "#,
+    );
+    assert!(
+        result.is_ok(),
+        "Expected valid type checking on module import to pass, got: {:?}",
+        result
+    );
+
+    let _ = std::fs::remove_file("temp_tc_module.bz");
+}
