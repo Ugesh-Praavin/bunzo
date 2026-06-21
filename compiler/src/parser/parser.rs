@@ -284,18 +284,6 @@ impl Parser {
     fn parse_range_expression(&mut self) -> Result<Expression, CompilerError> {
         let start = self.parse_addition()?; // parse start (no logic operators in ranges)
 
-let inclusive = if self.check(&TokenKind::DotDot) {
-    self.advance();
-    false
-} else {
-    return Err(CompilerError::UnexpectedToken {
-        expected: "'..' or '..='".to_string(),
-        found: describe_token(self.peek()),
-        line: self.peek().line,
-        column: self.peek().column,
-    });
-};
-
 let op_token = if self.check(&TokenKind::DotDot) || self.check(&TokenKind::DotDotEqual) {
     self.advance()
 } else {
