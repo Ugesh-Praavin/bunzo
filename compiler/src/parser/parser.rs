@@ -284,29 +284,41 @@ impl Parser {
     fn parse_range_expression(&mut self) -> Result<Expression, CompilerError> {
         let start = self.parse_addition()?; // parse start (no logic operators in ranges)
 
-        let inclusive = if self.check(&TokenKind::DotDot) {
-            self.advance();
-            false
-        } else {
-            return Err(CompilerError::UnexpectedToken {
-                expected: "'..' or '..='".to_string(),
-                found: describe_token(self.peek()),
-                line: self.peek().line,
-                column: self.peek().column,
-            });
-        };
+let inclusive = if self.check(&TokenKind::DotDot) {
+    self.advance();
+    false
+} else {
+    return Err(CompilerError::UnexpectedToken {
+        expected: "'..' or '..='".to_string(),
+        found: describe_token(self.peek()),
+        line: self.peek().line,
+        column: self.peek().column,
+    });
+};
 
-        let op_line = self.peek().line;
-        let op_column = self.peek().column;
-        let end = self.parse_addition()?;
+let op_token = if self.check(&TokenKind::DotDot) || self.check(&TokenKind::DotDotEqual) {
+    self.advance()
+} else {
+    return Err(CompilerError::UnexpectedToken {
+        expected: "'..' or '..='".to_string(),
+        found: describe_token(self.peek()),
+        line: self.peek().line,
+        column: self.peek().column,
+    });
+};
 
-        Ok(Expression::Range {
-            start: Box::new(start),
-            end: Box::new(end),
-            inclusive,
-            line: op_line,
-            column: op_column,
-        })
+let inclusive = matches!(op_token.kind, TokenKind::DotDotEqual);
+let op_line = op_token.line;
+let op_column = op_token.column;
+let end = self.parse_addition()?;
+
+Ok(Expression::Range {
+    start: Box::new(start),
+    end: Box::new(end),
+    inclusive,
+    line: op_line,
+    column: op_column,
+})
     }
 
     /// Parses `break`.
