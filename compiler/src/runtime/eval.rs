@@ -66,23 +66,22 @@ impl<W: std::io::Write> Interpreter<W> {
     /// then restores the previous environment. `Break` or `Continue` stops
     /// iteration and is returned to the caller.
     fn execute_block(&mut self, block: &Block) -> Result<ControlFlow, CompilerError> {
-        let child_env = Rc::new(RefCell::new(Environment::with_parent(Rc::clone(
-            &self.environment,
-        ))));
         let saved = Rc::clone(&self.environment);
-        self.environment = child_env;
+        self.environment = Rc::new(RefCell::new(Environment::with_parent(Rc::clone(&saved))));
 
-        let mut flow = ControlFlow::None;
-        for stmt in &block.statements {
-            flow = self.execute_statement(stmt)?;
-            if flow != ControlFlow::None {
-                break; // propagate Break/Continue to the caller
+        let result = (|| {
+            let mut flow = ControlFlow::None;
+            for stmt in &block.statements {
+                flow = self.execute_statement(stmt)?;
+                if flow != ControlFlow::None {
+                    break;
+                }
             }
-        }
+            Ok(flow)
+        })();
 
-        // Restore parent scope.
         self.environment = saved;
-        Ok(flow)
+        result
     }
 
     /// Executes a block in a child scope pre-seeded with a loop variable.
