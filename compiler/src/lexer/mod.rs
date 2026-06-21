@@ -97,7 +97,6 @@ impl Lexer {
             // ── Punctuation ───────────────────────────────────────────
             ',' => self.push(TokenKind::Comma, ",", start_line, start_col),
             ';' => self.push(TokenKind::Semicolon, ";", start_line, start_col),
-            ':' => self.push(TokenKind::Colon, ":", start_line, start_col),
             '%' => self.push(TokenKind::Percent, "%", start_line, start_col),
 
             // ── Dot / DotDot ──────────────────────────────────────────
@@ -110,7 +109,18 @@ impl Lexer {
                 }
             }
 
-            // ── Plus / PlusPlus / PlusEqual ────────────────────────────
+            // ── Colon / DoubleColon ───────────────────────────────────
+            ':' => {
+                if self.peek() == ':' {
+                    self.advance();
+                    self.push(TokenKind::DoubleColon, "::", start_line, start_col);
+                } else {
+                    self.push(TokenKind::Colon, ":", start_line, start_col);
+                }
+            }
+
+            // ── QuestionMark ──────────────────────────────────────────
+            '?' => self.push(TokenKind::QuestionMark, "?", start_line, start_col),            // ── Plus / PlusPlus / PlusEqual ────────────────────────────
             '+' => {
                 if self.peek() == '+' {
                     self.advance();
@@ -131,6 +141,9 @@ impl Lexer {
                 } else if self.peek() == '=' {
                     self.advance();
                     self.push(TokenKind::MinusEqual, "-=", start_line, start_col);
+                } else if self.peek() == '>' {
+                    self.advance();
+                    self.push(TokenKind::Arrow, "->", start_line, start_col);
                 } else {
                     self.push(TokenKind::Minus, "-", start_line, start_col);
                 }
@@ -160,11 +173,14 @@ impl Lexer {
                 }
             }
 
-            // ── Equal / EqualEqual ────────────────────────────────────
+            // ── Equal / EqualEqual / FatArrow ────────────────────────
             '=' => {
                 if self.peek() == '=' {
                     self.advance();
                     self.push(TokenKind::EqualEqual, "==", start_line, start_col);
+                } else if self.peek() == '>' {
+                    self.advance();
+                    self.push(TokenKind::FatArrow, "=>", start_line, start_col);
                 } else {
                     self.push(TokenKind::Equal, "=", start_line, start_col);
                 }
@@ -200,7 +216,7 @@ impl Lexer {
                 }
             }
 
-            // ── AmpersandAmpersand ────────────────────────────────────
+            // ── AmpersandAmpersand / Ampersand ────────────────────────
             '&' => {
                 if self.peek() == '&' {
                     self.advance();

@@ -1,0 +1,86 @@
+// Phase 8 — Error Handling
+// Demonstrates: try/catch, throw, error propagation
+
+func safe_divide(a: int, b: int) -> int {
+    if b == 0 {
+        throw "Division by zero"
+    }
+    return a / b
+}
+
+func parse_positive(s: string) -> int {
+    let n = to_int(s)
+    if n < 0 {
+        throw "Expected a positive number, got: " + s
+    }
+    return n
+}
+
+print("--- try / catch ---")
+
+try {
+    let result = safe_divide(10, 2)
+    print("10 / 2 =")
+    print(result)
+} catch err {
+    print("Error: " + str(err))
+}
+
+try {
+    let result = safe_divide(10, 0)
+    print("Should not reach here")
+} catch err {
+    print("Caught error:")
+    print(err)
+}
+
+print("")
+print("--- nested try/catch ---")
+
+try {
+    try {
+        throw "inner error"
+    } catch inner_err {
+        print("Inner caught:")
+        print(inner_err)
+        throw "re-thrown from inner"
+    }
+} catch outer_err {
+    print("Outer caught:")
+    print(outer_err)
+}
+
+print("")
+print("--- throw from function ---")
+
+try {
+    let val = parse_positive("42")
+    print("Parsed:")
+    print(val)
+} catch err {
+    print("Unexpected error: " + str(err))
+}
+
+try {
+    let val = parse_positive("-5")
+    print("Should not reach here")
+} catch err {
+    print("Caught from function:")
+    print(err)
+}
+
+print("")
+print("--- error in loop ---")
+
+let i = 0
+while i < 5 {
+    try {
+        if i == 3 {
+            throw "hit three!"
+        }
+        print("ok: " + str(i))
+    } catch err {
+        print("caught at i=" + str(i) + ": " + str(err))
+    }
+    i = i + 1
+}

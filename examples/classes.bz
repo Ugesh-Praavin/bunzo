@@ -1,0 +1,95 @@
+// Phase 3 — Classes & Methods
+// Demonstrates: class declarations, object construction, method calls,
+//               field access, this binding, composition
+
+class Counter {
+    value: int
+
+    func init() {
+        this.value = 0
+    }
+
+    func increment() {
+        this.value = this.value + 1
+    }
+
+    func decrement() {
+        this.value = this.value - 1
+    }
+
+    func reset() {
+        this.value = 0
+    }
+
+    func get() -> int {
+        return this.value
+    }
+}
+
+class BankAccount {
+    owner: string
+    balance: int
+
+    func init(name: string, opening: int) {
+        this.owner = name
+        this.balance = opening
+    }
+
+    func deposit(amount: int) {
+        this.balance = this.balance + amount
+    }
+
+    func withdraw(amount: int) {
+        if amount > this.balance {
+            print("Insufficient funds!")
+        } else {
+            this.balance = this.balance - amount
+        }
+    }
+
+    func get_balance() -> int {
+        return this.balance
+    }
+
+    func print_statement() {
+        print("Account owner: " + this.owner)
+        print("Balance: " + str(this.balance))
+    }
+}
+
+print("--- Classes ---")
+
+let c = Counter()
+c.init()
+print("Initial counter:")
+print(c.get())
+
+c.increment()
+c.increment()
+c.increment()
+print("After 3 increments:")
+print(c.get())
+
+c.decrement()
+print("After 1 decrement:")
+print(c.get())
+
+c.reset()
+print("After reset:")
+print(c.get())
+
+print("")
+
+let account = BankAccount()
+account.init("Bart", 1000)
+account.print_statement()
+
+account.deposit(500)
+print("After deposit of 500:")
+print(account.get_balance())
+
+account.withdraw(200)
+print("After withdrawal of 200:")
+print(account.get_balance())
+
+account.withdraw(5000)

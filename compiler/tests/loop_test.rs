@@ -65,7 +65,7 @@ fn parse_while_with_body() {
     } = &prog.statements[0]
     {
         assert!(matches!(condition, Expression::BinaryOp { .. }));
-        assert_eq!(body.statements.len(), 1);
+        assert_eq!(body.len(), 1);
     } else {
         panic!("Expected WhileStatement");
     }
@@ -75,8 +75,8 @@ fn parse_while_with_body() {
 fn parse_break() {
     let prog = parse_source("while true { break }").unwrap();
     if let Statement::WhileStatement { body, .. } = &prog.statements[0] {
-        assert_eq!(body.statements.len(), 1);
-        assert!(matches!(body.statements[0], Statement::Break { .. }));
+        assert_eq!(body.len(), 1);
+        assert!(matches!(body[0], Statement::BreakStatement { .. }));
     } else {
         panic!("Expected WhileStatement");
     }
@@ -86,8 +86,8 @@ fn parse_break() {
 fn parse_continue() {
     let prog = parse_source("while true { continue }").unwrap();
     if let Statement::WhileStatement { body, .. } = &prog.statements[0] {
-        assert_eq!(body.statements.len(), 1);
-        assert!(matches!(body.statements[0], Statement::Continue { .. }));
+        assert_eq!(body.len(), 1);
+        assert!(matches!(body[0], Statement::ContinueStatement { .. }));
     } else {
         panic!("Expected WhileStatement");
     }
@@ -191,7 +191,7 @@ fn parse_for_empty() {
     assert_eq!(prog.statements.len(), 1);
     assert!(matches!(
         prog.statements[0],
-        Statement::ForInStatement { .. }
+        Statement::ForStatement { .. }
     ));
 }
 
@@ -199,24 +199,20 @@ fn parse_for_empty() {
 fn parse_for_with_body() {
     let prog = parse_source("for x in 0..10 { print(x) }").unwrap();
     assert_eq!(prog.statements.len(), 1);
-    if let Statement::ForInStatement {
+    if let Statement::ForStatement {
         variable,
-        iterable,
+        start,
+        end,
         body,
         ..
     } = &prog.statements[0]
     {
         assert_eq!(variable, "x");
-        assert!(matches!(
-            iterable,
-            Expression::Range {
-                inclusive: false,
-                ..
-            }
-        ));
-        assert_eq!(body.statements.len(), 1);
+        assert!(matches!(start, Expression::IntegerLiteral { value: 0, .. }));
+        assert!(matches!(end, Expression::IntegerLiteral { .. }));
+        assert_eq!(body.len(), 1);
     } else {
-        panic!("Expected ForInStatement");
+        panic!("Expected ForStatement");
     }
 }
 

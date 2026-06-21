@@ -4,23 +4,26 @@
 //! Abstract Syntax Tree. It implements a recursive descent parser with
 //! one function per grammar precedence level.
 //!
-//! # Grammar (Phase 7)
+//! # Grammar (Phase 3 + Phase 1 functions + control flow)
 //!
 //! ```text
 //! program        → statement* EOF
-//! statement      → let_decl | const_decl | print_stmt | if_stmt
-//!                  | while_stmt | for_stmt | break_stmt | cont_stmt
-//!                  | assign_stmt | expr_stmt
+//! statement      → let_decl | const_decl | print_stmt | func_decl
+//!                  | return_stmt | if_stmt | while_stmt | for_stmt
+//!                  | break_stmt | continue_stmt | assign_stmt | expr_stmt
 //! let_decl       → "let" IDENTIFIER "=" expression
 //! const_decl     → "const" IDENTIFIER "=" expression
 //! print_stmt     → "print" "(" expression ")"
+//! func_decl      → "func" IDENTIFIER "(" params? ")" ( "->" IDENTIFIER )? block
+//! params         → param ( "," param )*
+//! param          → IDENTIFIER ":" IDENTIFIER
+//! return_stmt    → "return" expression?
 //! if_stmt        → "if" expression block ( "else" ( if_stmt | block ) )?
 //! while_stmt     → "while" expression block
-//! for_stmt       → "for" IDENTIFIER "in" range_expr block
-//! range_expr     → expression ( ".." | "..=" ) expression
+//! for_stmt       → "for" IDENTIFIER "in" expression ".." expression block
 //! break_stmt     → "break"
-//! cont_stmt      → "continue"
-//! assign_stmt    → IDENTIFIER "=" expression   (when IDENTIFIER followed by "=")
+//! continue_stmt  → "continue"
+//! assign_stmt    → IDENTIFIER "=" expression
 //! block          → "{" statement* "}"
 //! expr_stmt      → expression
 //!
@@ -31,13 +34,17 @@
 //! comparison     → addition ( ( "<" | ">" | "<=" | ">=" ) addition )*
 //! addition       → multiplication ( ( "+" | "-" ) multiplication )*
 //! multiplication → unary ( ( "*" | "/" | "%" ) unary )*
-//! unary          → ( "!" | "-" ) unary | primary
+//! unary          → ( "!" | "-" ) unary | call
+//! call           → primary ( "(" arguments? ")" )*
+//! arguments      → expression ( "," expression )*
 //! primary        → INTEGER | FLOAT | STRING | "true" | "false" | "null"
 //!                  | IDENTIFIER | "(" expression ")"
-//!                  | primary ".." primary  (range, inside for)
 //! ```
 
-use crate::ast::{BinaryOperator, Block, Expression, Program, Statement, UnaryOperator};
+use crate::ast::{
+    BinaryOperator, Expression, MethodSignature, Parameter, Program, Statement, UnaryOperator,
+    Visibility,
+};
 use crate::diagnostics::CompilerError;
 use crate::lexer::{Token, TokenKind};
 
@@ -69,6 +76,13 @@ struct Parser {
     tokens: Vec<Token>,
     /// Current read position in `tokens`.
     position: usize,
+    /// `true` while parsing an expression context where a `{` must NOT
+    /// be interpreted as the start of a struct literal (e.g. an `if` or
+    /// `while` condition, where `{` instead opens the statement block).
+    ///
+    /// This mirrors the standard "no struct literals in condition
+    /// position" rule used by languages with the same ambiguity.
+    no_struct_literal: bool,
 }
 
 impl Parser {
@@ -77,6 +91,7 @@ impl Parser {
         Self {
             tokens,
             position: 0,
+            no_struct_literal: false,
         }
     }
 
@@ -98,20 +113,464 @@ impl Parser {
     /// Parses a single statement, dispatching on the leading token.
     fn parse_statement(&mut self) -> Result<Statement, CompilerError> {
         match self.peek().kind {
-            TokenKind::Let => self.parse_let_declaration(),
+            TokenKind::Let | TokenKind::Var => self.parse_let_declaration(),
             TokenKind::Const => self.parse_const_declaration(),
             TokenKind::Print => self.parse_print_statement(),
+            TokenKind::Func => self.parse_function_declaration(),
+            TokenKind::Return => self.parse_return_statement(),
             TokenKind::If => self.parse_if_statement(),
             TokenKind::While => self.parse_while_statement(),
             TokenKind::For => self.parse_for_statement(),
             TokenKind::Break => self.parse_break_statement(),
             TokenKind::Continue => self.parse_continue_statement(),
-            // `identifier =` is an assignment; everything else is expr_stmt
-            TokenKind::Identifier if self.peek_next_is(&TokenKind::Equal) => {
-                self.parse_assign_statement()
+            TokenKind::Struct => self.parse_struct_declaration(),
+            TokenKind::Abstract if self.check_next(&TokenKind::Class) => {
+                self.parse_class_declaration()
+            }
+            TokenKind::Class => self.parse_class_declaration(),
+            TokenKind::Interface | TokenKind::Trait => self.parse_interface_declaration(),
+            TokenKind::Try => self.parse_try_catch_statement(),
+            TokenKind::Throw => self.parse_throw_statement(),
+            TokenKind::Import => self.parse_import_declaration(),
+            TokenKind::Export => self.parse_export_declaration(),
+            TokenKind::Identifier if self.check_next(&TokenKind::Equal) => {
+                self.parse_assignment_statement()
             }
             _ => self.parse_expression_statement(),
         }
+    }
+
+    /// Parses `name = expression`.
+    fn parse_assignment_statement(&mut self) -> Result<Statement, CompilerError> {
+        let name_token = self.advance();
+        let name = name_token.lexeme;
+        let line = name_token.line;
+        let column = name_token.column;
+
+        self.expect(TokenKind::Equal, "'='")?;
+        let value = self.parse_expression()?;
+
+        Ok(Statement::Assignment { name, value, line, column })
+    }
+
+    /// Parses `if condition { ... } ( else ( if ... | { ... } ) )?`.
+    fn parse_if_statement(&mut self) -> Result<Statement, CompilerError> {
+        let keyword = self.advance();
+        let line = keyword.line;
+        let column = keyword.column;
+
+        let condition = self.with_no_struct_literal(|p| p.parse_expression())?;
+        let then_branch = self.parse_block()?;
+
+        let else_branch = if self.check(&TokenKind::Else) {
+            self.advance();
+            if self.check(&TokenKind::If) {
+                // `else if` — represented as a single nested if statement.
+                Some(vec![self.parse_if_statement()?])
+            } else {
+                Some(self.parse_block()?)
+            }
+        } else {
+            None
+        };
+
+        Ok(Statement::IfStatement {
+            condition,
+            then_branch,
+            else_branch,
+            line,
+            column,
+        })
+    }
+
+    /// Parses `while condition { ... }`.
+    fn parse_while_statement(&mut self) -> Result<Statement, CompilerError> {
+        let keyword = self.advance();
+        let line = keyword.line;
+        let column = keyword.column;
+
+        let condition = self.with_no_struct_literal(|p| p.parse_expression())?;
+        let body = self.parse_block()?;
+
+        Ok(Statement::WhileStatement { condition, body, line, column })
+    }
+
+    /// Parses `for name in start..end { ... }`.
+    fn parse_for_statement(&mut self) -> Result<Statement, CompilerError> {
+        let keyword = self.advance();
+        let line = keyword.line;
+        let column = keyword.column;
+
+        let name_token = self.expect(TokenKind::Identifier, "loop variable name")?;
+        let variable = name_token.lexeme;
+
+        self.expect(TokenKind::In, "'in'")?;
+
+        let start = self.with_no_struct_literal(|p| p.parse_addition())?;
+        self.expect(TokenKind::DotDot, "'..'")?;
+        let end = self.with_no_struct_literal(|p| p.parse_addition())?;
+
+        let body = self.parse_block()?;
+
+        Ok(Statement::ForStatement { variable, start, end, body, line, column })
+    }
+
+    /// Parses `break`.
+    fn parse_break_statement(&mut self) -> Result<Statement, CompilerError> {
+        let keyword = self.advance();
+        Ok(Statement::BreakStatement { line: keyword.line, column: keyword.column })
+    }
+
+    /// Parses `continue`.
+    fn parse_continue_statement(&mut self) -> Result<Statement, CompilerError> {
+        let keyword = self.advance();
+        Ok(Statement::ContinueStatement { line: keyword.line, column: keyword.column })
+    }
+
+    /// Parses `struct Name { field: type ... }`.
+    ///
+    /// Fields are newline-separated (no comma), matching the Bunzo
+    /// example programs; a trailing field list ending right before `}`
+    /// is also accepted without a separator requirement.
+    fn parse_struct_declaration(&mut self) -> Result<Statement, CompilerError> {
+        let keyword = self.advance();
+        let line = keyword.line;
+        let column = keyword.column;
+
+        let name_token = self.expect(TokenKind::Identifier, "struct name")?;
+        let name = name_token.lexeme;
+
+        self.expect(TokenKind::LeftBrace, "'{'")?;
+        let mut fields = Vec::new();
+        while !self.check(&TokenKind::RightBrace) && !self.is_at_end() {
+            let field_name_token = self.expect(TokenKind::Identifier, "field name")?;
+            self.expect(TokenKind::Colon, "':'")?;
+            let type_token = self.expect(TokenKind::Identifier, "field type")?;
+
+            fields.push(Parameter {
+                name: field_name_token.lexeme,
+                type_name: type_token.lexeme,
+                visibility: Visibility::Public,
+                line: field_name_token.line,
+                column: field_name_token.column,
+            });
+
+            // Allow an optional comma between fields, in addition to the
+            // newline-separated style shown in the language examples.
+            if self.check(&TokenKind::Comma) {
+                self.advance();
+            }
+        }
+        self.expect(TokenKind::RightBrace, "'}'")?;
+
+        Ok(Statement::StructDeclaration { name, fields, line, column })
+    }
+
+    /// Parses `[abstract] class Name [extends Parent] [implements A, B] { ... }`.
+    fn parse_class_declaration(&mut self) -> Result<Statement, CompilerError> {
+        let is_abstract = if self.check(&TokenKind::Abstract) {
+            self.advance();
+            true
+        } else {
+            false
+        };
+
+        let keyword = self.advance(); // consume `class`
+        let line = keyword.line;
+        let column = keyword.column;
+
+        let name_token = self.expect(TokenKind::Identifier, "class name")?;
+        let name = name_token.lexeme;
+
+        let extends = if self.check(&TokenKind::Extends) {
+            self.advance();
+            let parent = self.expect(TokenKind::Identifier, "parent class name")?;
+            Some(parent.lexeme)
+        } else {
+            None
+        };
+
+        let mut implements = Vec::new();
+        if self.check(&TokenKind::Implements) {
+            self.advance();
+            loop {
+                let iface = self.expect(TokenKind::Identifier, "interface name")?;
+                implements.push(iface.lexeme);
+                if self.check(&TokenKind::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        self.expect(TokenKind::LeftBrace, "'{'")?;
+
+        let mut fields = Vec::new();
+        let mut methods = Vec::new();
+
+        while !self.check(&TokenKind::RightBrace) && !self.is_at_end() {
+            let visibility = self.parse_optional_visibility();
+            let method_is_abstract = if self.check(&TokenKind::Abstract) {
+                self.advance();
+                true
+            } else {
+                false
+            };
+
+            if self.check(&TokenKind::Func) {
+                let method = self.parse_method_declaration(visibility, method_is_abstract)?;
+                methods.push(method);
+            } else {
+                if method_is_abstract {
+                    let token = self.peek();
+                    return Err(CompilerError::UnexpectedToken {
+                        expected: "func after abstract".to_string(),
+                        found: describe_token(token),
+                        line: token.line,
+                        column: token.column,
+                    });
+                }
+                fields.push(self.parse_field_declaration(visibility)?);
+            }
+        }
+
+        self.expect(TokenKind::RightBrace, "'}'")?;
+
+        Ok(Statement::ClassDeclaration {
+            name,
+            extends,
+            implements,
+            is_abstract,
+            fields,
+            methods,
+            line,
+            column,
+        })
+    }
+
+    /// Parses `interface Name { func method(...) -> type ... }` or `trait Name { ... }`.
+    fn parse_interface_declaration(&mut self) -> Result<Statement, CompilerError> {
+        let keyword = self.advance(); // `interface` or `trait`
+        let line = keyword.line;
+        let column = keyword.column;
+
+        let name_token = self.expect(TokenKind::Identifier, "interface name")?;
+        let name = name_token.lexeme;
+
+        self.expect(TokenKind::LeftBrace, "'{'")?;
+        let mut methods = Vec::new();
+
+        while !self.check(&TokenKind::RightBrace) && !self.is_at_end() {
+            self.expect(TokenKind::Func, "'func'")?;
+            methods.push(self.parse_method_signature()?);
+        }
+
+        self.expect(TokenKind::RightBrace, "'}'")?;
+
+        Ok(Statement::InterfaceDeclaration { name, methods, line, column })
+    }
+
+    /// Parses an optional `public` / `private` prefix (defaults to public).
+    fn parse_optional_visibility(&mut self) -> Visibility {
+        if self.check(&TokenKind::Public) {
+            self.advance();
+            Visibility::Public
+        } else if self.check(&TokenKind::Private) {
+            self.advance();
+            Visibility::Private
+        } else {
+            Visibility::Public
+        }
+    }
+
+    /// Parses `name: type` with the given visibility.
+    fn parse_field_declaration(&mut self, visibility: Visibility) -> Result<Parameter, CompilerError> {
+        let field_name_token = self.expect(TokenKind::Identifier, "field name")?;
+        self.expect(TokenKind::Colon, "':'")?;
+        let type_token = self.expect(TokenKind::Identifier, "field type")?;
+
+        if self.check(&TokenKind::Comma) {
+            self.advance();
+        }
+
+        Ok(Parameter {
+            name: field_name_token.lexeme,
+            type_name: type_token.lexeme,
+            visibility,
+            line: field_name_token.line,
+            column: field_name_token.column,
+        })
+    }
+
+    /// Parses a method signature (no body) for interfaces.
+    fn parse_method_signature(&mut self) -> Result<MethodSignature, CompilerError> {
+        let name_token = self.expect(TokenKind::Identifier, "method name")?;
+        let line = name_token.line;
+        let column = name_token.column;
+
+        self.expect(TokenKind::LeftParen, "'('")?;
+        let params = self.parse_parameter_list()?;
+        self.expect(TokenKind::RightParen, "')'")?;
+
+        let return_type = if self.check(&TokenKind::Arrow) {
+            self.advance();
+            let type_token = self.expect(TokenKind::Identifier, "return type")?;
+            Some(type_token.lexeme)
+        } else {
+            None
+        };
+
+        Ok(MethodSignature {
+            name: name_token.lexeme,
+            params,
+            return_type,
+            line,
+            column,
+        })
+    }
+
+    /// Parses a class method with optional visibility and abstract modifier.
+    fn parse_method_declaration(
+        &mut self,
+        visibility: Visibility,
+        is_abstract: bool,
+    ) -> Result<Statement, CompilerError> {
+        let func_kw = self.advance(); // `func`
+        let line = func_kw.line;
+        let column = func_kw.column;
+
+        let name_token = self.expect(TokenKind::Identifier, "method name")?;
+        let name = name_token.lexeme;
+
+        self.expect(TokenKind::LeftParen, "'('")?;
+        let params = self.parse_parameter_list()?;
+        self.expect(TokenKind::RightParen, "')'")?;
+
+        let return_type = if self.check(&TokenKind::Arrow) {
+            self.advance();
+            let type_token = self.expect(TokenKind::Identifier, "return type")?;
+            Some(type_token.lexeme)
+        } else {
+            None
+        };
+
+        let body = if is_abstract {
+            if self.check(&TokenKind::LeftBrace) {
+                return Err(CompilerError::UnexpectedToken {
+                    expected: "no body for abstract method".to_string(),
+                    found: "'{'".to_string(),
+                    line: self.peek().line,
+                    column: self.peek().column,
+                });
+            }
+            Vec::new()
+        } else {
+            self.parse_block()?
+        };
+
+        Ok(Statement::FunctionDeclaration {
+            name,
+            params,
+            return_type,
+            body,
+            visibility,
+            is_abstract,
+            line,
+            column,
+        })
+    }
+
+    /// Parses a comma-separated parameter list.
+    fn parse_parameter_list(&mut self) -> Result<Vec<Parameter>, CompilerError> {
+        let mut params = Vec::new();
+        if !self.check(&TokenKind::RightParen) {
+            loop {
+                let param_name_token = self.expect(TokenKind::Identifier, "parameter name")?;
+                self.expect(TokenKind::Colon, "':'")?;
+                let type_token = self.expect(TokenKind::Identifier, "parameter type")?;
+
+                params.push(Parameter {
+                    name: param_name_token.lexeme,
+                    type_name: type_token.lexeme,
+                    visibility: Visibility::Public,
+                    line: param_name_token.line,
+                    column: param_name_token.column,
+                });
+
+                if self.check(&TokenKind::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+        }
+        Ok(params)
+    }
+
+    /// Parses `try { try_block } catch catch_var { catch_block }`.
+    fn parse_try_catch_statement(&mut self) -> Result<Statement, CompilerError> {
+        let try_kw = self.advance(); // consume `try`
+        let try_block = self.parse_block()?;
+
+        self.expect(TokenKind::Catch, "'catch'")?;
+        let catch_var_token = self.expect(TokenKind::Identifier, "catch variable name")?;
+        let catch_var = catch_var_token.lexeme;
+
+        let catch_block = self.parse_block()?;
+
+        Ok(Statement::TryCatch {
+            try_block,
+            catch_var,
+            catch_block,
+            line: try_kw.line,
+            column: try_kw.column,
+        })
+    }
+
+    /// Parses `throw expression`.
+    fn parse_throw_statement(&mut self) -> Result<Statement, CompilerError> {
+        let throw_kw = self.advance(); // consume `throw`
+        let value = self.parse_expression()?;
+        Ok(Statement::Throw {
+            value,
+            line: throw_kw.line,
+            column: throw_kw.column,
+        })
+    }
+
+    /// Parses `import name` or `import name from "path"`.
+    fn parse_import_declaration(&mut self) -> Result<Statement, CompilerError> {
+        let keyword = self.advance();
+        let line = keyword.line;
+        let column = keyword.column;
+
+        let name_token = self.expect(TokenKind::Identifier, "module name")?;
+        let name = name_token.lexeme;
+
+        let path = if self.check(&TokenKind::From) {
+            self.advance();
+            let path_token = self.expect(TokenKind::StringLiteral, "module path string")?;
+            Some(path_token.lexeme)
+        } else {
+            None
+        };
+
+        Ok(Statement::ImportDeclaration { name, path, line, column })
+    }
+
+    /// Parses `export name`.
+    fn parse_export_declaration(&mut self) -> Result<Statement, CompilerError> {
+        let keyword = self.advance();
+        let line = keyword.line;
+        let column = keyword.column;
+
+        let name_token = self.expect(TokenKind::Identifier, "export name")?;
+        Ok(Statement::ExportDeclaration {
+            name: name_token.lexeme,
+            line,
+            column,
+        })
     }
 
     /// Parses `let name = expression`.
@@ -173,53 +632,106 @@ impl Parser {
         })
     }
 
-    /// Parses `if expression block ( "else" ( if_stmt | block ) )?`.
+    /// Parses a bare expression as a statement.
+    fn parse_expression_statement(&mut self) -> Result<Statement, CompilerError> {
+        let expression = self.parse_expression()?;
+        if self.check(&TokenKind::Equal) {
+            let eq = self.advance(); // consume '='
+            let value = self.parse_expression()?;
+            match expression {
+                Expression::FieldAccess { object, field, .. } => {
+                    Ok(Statement::FieldAssignment {
+                        object: *object,
+                        field,
+                        value,
+                        line: eq.line,
+                        column: eq.column,
+                    })
+                }
+                _ => Err(CompilerError::UnexpectedToken {
+                    expected: "assignable field expression".to_string(),
+                    found: describe_token(&eq),
+                    line: eq.line,
+                    column: eq.column,
+                }),
+            }
+        } else {
+            Ok(Statement::ExpressionStatement { expression })
+        }
+    }
+
+    /// Parses `func name(param: type, ...) -> returnType { statements }`.
     ///
-    /// `else if` chains are handled naturally: after `else`, if the next token
-    /// is `if` we parse another `if_stmt` and wrap it in a single-element block,
-    /// otherwise we parse a plain block.
-    fn parse_if_statement(&mut self) -> Result<Statement, CompilerError> {
-        let keyword = self.advance(); // consume `if`
+    /// The return type and parameter list are both optional in shape
+    /// (zero parameters, no `->` clause), matching the Bunzo example
+    /// programs where a function may declare no return value.
+    fn parse_function_declaration(&mut self) -> Result<Statement, CompilerError> {
+        let visibility = self.parse_optional_visibility();
+        if self.check(&TokenKind::Abstract) {
+            let token = self.peek();
+            return Err(CompilerError::UnexpectedToken {
+                expected: "concrete function".to_string(),
+                found: "abstract".to_string(),
+                line: token.line,
+                column: token.column,
+            });
+        }
+
+        let keyword = self.advance();
         let line = keyword.line;
         let column = keyword.column;
 
-        let condition = self.parse_expression()?;
-        let then_branch = self.parse_block()?;
+        let name_token = self.expect(TokenKind::Identifier, "function name")?;
+        let name = name_token.lexeme;
 
-        let else_branch = if self.check(&TokenKind::Else) {
-            self.advance(); // consume `else`
+        self.expect(TokenKind::LeftParen, "'('")?;
+        let params = self.parse_parameter_list()?;
+        self.expect(TokenKind::RightParen, "')'")?;
 
-            if self.check(&TokenKind::If) {
-                // `else if` — parse the nested if and wrap it in a synthetic block
-                let else_if_line = self.peek().line;
-                let else_if_col = self.peek().column;
-                let nested = self.parse_if_statement()?;
-                Some(Block {
-                    statements: vec![nested],
-                    line: else_if_line,
-                    column: else_if_col,
-                })
-            } else {
-                Some(self.parse_block()?)
-            }
+        let return_type = if self.check(&TokenKind::Arrow) {
+            self.advance();
+            let type_token = self.expect(TokenKind::Identifier, "return type")?;
+            Some(type_token.lexeme)
         } else {
             None
         };
 
-        Ok(Statement::IfStatement {
-            condition,
-            then_branch,
-            else_branch,
+        let body = self.parse_block()?;
+
+        Ok(Statement::FunctionDeclaration {
+            name,
+            params,
+            return_type,
+            body,
+            visibility,
+            is_abstract: false,
             line,
             column,
         })
     }
 
-    /// Parses a block: `"{" statement* "}"`.
-    fn parse_block(&mut self) -> Result<Block, CompilerError> {
-        let open = self.expect(TokenKind::LeftBrace, "'{'")?;
-        let line = open.line;
-        let column = open.column;
+    /// Parses `return` or `return expression`.
+    ///
+    /// A bare `return` (no value) is detected by checking whether the
+    /// next token can begin an expression; if not, the function implicitly
+    /// returns `null`.
+    fn parse_return_statement(&mut self) -> Result<Statement, CompilerError> {
+        let keyword = self.advance();
+        let line = keyword.line;
+        let column = keyword.column;
+
+        let value = if self.can_start_expression() {
+            Some(self.parse_expression()?)
+        } else {
+            None
+        };
+
+        Ok(Statement::ReturnStatement { value, line, column })
+    }
+
+    /// Parses a `{ statement* }` block, used for function bodies.
+    fn parse_block(&mut self) -> Result<Vec<Statement>, CompilerError> {
+        self.expect(TokenKind::LeftBrace, "'{'")?;
 
         let mut statements = Vec::new();
         while !self.check(&TokenKind::RightBrace) && !self.is_at_end() {
@@ -227,128 +739,28 @@ impl Parser {
         }
 
         self.expect(TokenKind::RightBrace, "'}'")?;
-
-        Ok(Block {
-            statements,
-            line,
-            column,
-        })
+        Ok(statements)
     }
 
-    /// Parses `while expression block`.
-    fn parse_while_statement(&mut self) -> Result<Statement, CompilerError> {
-        let keyword = self.advance(); // consume `while`
-        let line = keyword.line;
-        let column = keyword.column;
-
-        let condition = self.parse_expression()?;
-        let body = self.parse_block()?;
-
-        Ok(Statement::WhileStatement {
-            condition,
-            body,
-            line,
-            column,
-        })
-    }
-
-    /// Parses `for IDENTIFIER in range_expr block`.
-    fn parse_for_statement(&mut self) -> Result<Statement, CompilerError> {
-        let keyword = self.advance(); // consume `for`
-        let line = keyword.line;
-        let column = keyword.column;
-
-        let var_token = self.expect(TokenKind::Identifier, "loop variable name")?;
-        let variable = var_token.lexeme;
-
-        self.expect(TokenKind::In, "'in'")?;
-
-        // Parse the range expression: start (..|..=) end
-        let iterable = self.parse_range_expression()?;
-
-        let body = self.parse_block()?;
-
-        Ok(Statement::ForInStatement {
-            variable,
-            iterable,
-            body,
-            line,
-            column,
-        })
-    }
-
-    /// Parses a range expression: `expression ( ".." | "..=" ) expression`.
+    /// Returns `true` if the current token can begin an expression.
     ///
-    /// This is only called from `parse_for_statement`; it is not part of the
-    /// general expression hierarchy to keep range syntax unambiguous.
-    fn parse_range_expression(&mut self) -> Result<Expression, CompilerError> {
-        let start = self.parse_addition()?; // parse start (no logic operators in ranges)
-
-let op_token = if self.check(&TokenKind::DotDot) || self.check(&TokenKind::DotDotEqual) {
-    self.advance()
-} else {
-    return Err(CompilerError::UnexpectedToken {
-        expected: "'..' or '..='".to_string(),
-        found: describe_token(self.peek()),
-        line: self.peek().line,
-        column: self.peek().column,
-    });
-};
-
-let inclusive = matches!(op_token.kind, TokenKind::DotDotEqual);
-let op_line = op_token.line;
-let op_column = op_token.column;
-let end = self.parse_addition()?;
-
-Ok(Expression::Range {
-    start: Box::new(start),
-    end: Box::new(end),
-    inclusive,
-    line: op_line,
-    column: op_column,
-})
-    }
-
-    /// Parses `break`.
-    fn parse_break_statement(&mut self) -> Result<Statement, CompilerError> {
-        let tok = self.advance();
-        Ok(Statement::Break {
-            line: tok.line,
-            column: tok.column,
-        })
-    }
-
-    /// Parses `continue`.
-    fn parse_continue_statement(&mut self) -> Result<Statement, CompilerError> {
-        let tok = self.advance();
-        Ok(Statement::Continue {
-            line: tok.line,
-            column: tok.column,
-        })
-    }
-
-    /// Parses `IDENTIFIER = expression` (variable reassignment).
-    fn parse_assign_statement(&mut self) -> Result<Statement, CompilerError> {
-        let id_token = self.advance(); // consume identifier
-        let name = id_token.lexeme;
-        let line = id_token.line;
-        let column = id_token.column;
-
-        self.expect(TokenKind::Equal, "'='")?; // consume `=`
-        let value = self.parse_expression()?;
-
-        Ok(Statement::AssignStatement {
-            name,
-            value,
-            line,
-            column,
-        })
-    }
-
-    /// Parses a bare expression as a statement.
-    fn parse_expression_statement(&mut self) -> Result<Statement, CompilerError> {
-        let expression = self.parse_expression()?;
-        Ok(Statement::ExpressionStatement { expression })
+    /// Used to disambiguate a bare `return` from `return <expression>`,
+    /// since Bunzo statements have no required terminator.
+    fn can_start_expression(&self) -> bool {
+        matches!(
+            self.peek().kind,
+            TokenKind::IntegerLiteral
+                | TokenKind::FloatLiteral
+                | TokenKind::StringLiteral
+                | TokenKind::True
+                | TokenKind::False
+                | TokenKind::Null
+                | TokenKind::Identifier
+                |             TokenKind::LeftParen
+                | TokenKind::Bang
+                | TokenKind::Minus
+                | TokenKind::Super
+        )
     }
 
     // ── Expressions (by precedence, lowest first) ─────────────────────
@@ -502,7 +914,7 @@ Ok(Expression::Range {
         Ok(left)
     }
 
-    /// Parses `( "!" | "-" ) unary | primary`.
+    /// Parses `( "!" | "-" ) unary | call`.
     fn parse_unary(&mut self) -> Result<Expression, CompilerError> {
         if self.check(&TokenKind::Bang) || self.check(&TokenKind::Minus) {
             let op_token = self.advance();
@@ -520,7 +932,94 @@ Ok(Expression::Range {
             });
         }
 
-        self.parse_primary()
+        self.parse_call()
+    }
+
+    /// Parses `primary ( "(" arguments? ")" | "." IDENTIFIER )*` — zero or
+    /// more call applications and/or field accesses chained onto a
+    /// primary expression, e.g. `add(1, 2)` or `user.name`.
+    fn parse_call(&mut self) -> Result<Expression, CompilerError> {
+        let mut expr = self.parse_primary()?;
+
+        loop {
+            if self.check(&TokenKind::LeftParen) {
+                expr = self.finish_call(expr)?;
+            } else if self.check(&TokenKind::Dot) {
+                let dot = self.advance();
+                let field_token = self.expect(TokenKind::Identifier, "field name")?;
+                expr = Expression::FieldAccess {
+                    object: Box::new(expr),
+                    field: field_token.lexeme,
+                    line: dot.line,
+                    column: dot.column,
+                };
+            } else {
+                break;
+            }
+        }
+
+        Ok(expr)
+    }
+
+    /// Parses the argument list and closing `)` of a call, given the
+    /// already-parsed callee expression.
+    fn finish_call(&mut self, callee: Expression) -> Result<Expression, CompilerError> {
+        let paren = self.advance(); // consume '('
+
+        let mut arguments = Vec::new();
+        if !self.check(&TokenKind::RightParen) {
+            loop {
+                arguments.push(self.with_struct_literal_allowed(|p| p.parse_expression())?);
+                if self.check(&TokenKind::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        self.expect(TokenKind::RightParen, "')'")?;
+
+        Ok(Expression::Call {
+            callee: Box::new(callee),
+            arguments,
+            line: paren.line,
+            column: paren.column,
+        })
+    }
+
+    /// Parses the field list and closing `}` of a struct literal, given
+    /// the already-consumed struct type name and its source location.
+    ///
+    /// `name { field: expr, field: expr }` — fields are comma-separated.
+    fn parse_struct_literal(
+        &mut self,
+        name: String,
+        line: usize,
+        column: usize,
+    ) -> Result<Expression, CompilerError> {
+        self.expect(TokenKind::LeftBrace, "'{'")?;
+
+        let mut fields = Vec::new();
+        if !self.check(&TokenKind::RightBrace) {
+            loop {
+                let field_name_token = self.expect(TokenKind::Identifier, "field name")?;
+                self.expect(TokenKind::Colon, "':'")?;
+                let value = self.with_struct_literal_allowed(|p| p.parse_expression())?;
+
+                fields.push((field_name_token.lexeme, value));
+
+                if self.check(&TokenKind::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        self.expect(TokenKind::RightBrace, "'}'")?;
+
+        Ok(Expression::StructLiteral { name, fields, line, column })
     }
 
     /// Parses a primary expression (literals, identifiers, grouping).
@@ -530,16 +1029,14 @@ Ok(Expression::Range {
         match token.kind {
             TokenKind::IntegerLiteral => {
                 self.advance();
-                let value: i64 =
-                    token
-                        .lexeme
-                        .parse()
-                        .map_err(|_| CompilerError::UnexpectedToken {
-                            expected: "valid integer".to_string(),
-                            found: describe_token(&token),
-                            line: token.line,
-                            column: token.column,
-                        })?;
+                let value: i64 = token.lexeme.parse().map_err(|_| {
+                    CompilerError::UnexpectedToken {
+                        expected: "valid integer".to_string(),
+                        found: describe_token(&token),
+                        line: token.line,
+                        column: token.column,
+                    }
+                })?;
                 Ok(Expression::IntegerLiteral {
                     value,
                     line: token.line,
@@ -549,16 +1046,14 @@ Ok(Expression::Range {
 
             TokenKind::FloatLiteral => {
                 self.advance();
-                let value: f64 =
-                    token
-                        .lexeme
-                        .parse()
-                        .map_err(|_| CompilerError::UnexpectedToken {
-                            expected: "valid float".to_string(),
-                            found: describe_token(&token),
-                            line: token.line,
-                            column: token.column,
-                        })?;
+                let value: f64 = token.lexeme.parse().map_err(|_| {
+                    CompilerError::UnexpectedToken {
+                        expected: "valid float".to_string(),
+                        found: describe_token(&token),
+                        line: token.line,
+                        column: token.column,
+                    }
+                })?;
                 Ok(Expression::FloatLiteral {
                     value,
                     line: token.line,
@@ -601,18 +1096,30 @@ Ok(Expression::Range {
                 })
             }
 
-            TokenKind::Identifier => {
+            TokenKind::Super => {
                 self.advance();
-                Ok(Expression::Identifier {
-                    name: token.lexeme,
+                Ok(Expression::SuperExpr {
                     line: token.line,
                     column: token.column,
                 })
             }
 
+            TokenKind::Identifier => {
+                self.advance();
+                if !self.no_struct_literal && self.check(&TokenKind::LeftBrace) {
+                    self.parse_struct_literal(token.lexeme, token.line, token.column)
+                } else {
+                    Ok(Expression::Identifier {
+                        name: token.lexeme,
+                        line: token.line,
+                        column: token.column,
+                    })
+                }
+            }
+
             TokenKind::LeftParen => {
                 self.advance();
-                let expr = self.parse_expression()?;
+                let expr = self.with_struct_literal_allowed(|p| p.parse_expression())?;
                 self.expect(TokenKind::RightParen, "')'")?;
                 Ok(Expression::Grouping {
                     expression: Box::new(expr),
@@ -657,22 +1164,58 @@ Ok(Expression::Range {
         self.peek().kind == *kind
     }
 
-    /// Returns `true` if the **next** token (position + 1) matches `kind`.
+    /// Returns `true` if the *next* token (one past current) matches `kind`.
     ///
-    /// Used to distinguish `identifier = value` (assignment) from an identifier
-    /// used as an expression, without consuming any tokens.
-    fn peek_next_is(&self, kind: &TokenKind) -> bool {
-        let next_pos = self.position + 1;
-        if next_pos < self.tokens.len() {
-            self.tokens[next_pos].kind == *kind
-        } else {
-            false
-        }
+    /// Used to disambiguate `name = expr` (assignment) from a bare
+    /// expression statement starting with an identifier, without
+    /// committing to a parse path.
+    fn check_next(&self, kind: &TokenKind) -> bool {
+        self.tokens
+            .get(self.position + 1)
+            .map(|t| t.kind == *kind)
+            .unwrap_or(false)
+    }
+
+    /// Runs `f` with struct-literal parsing suppressed, restoring the
+    /// previous setting afterward (even if `f` errors).
+    ///
+    /// Used for `if`/`while` conditions and `for` range bounds, where a
+    /// bare `{` must open the statement block rather than a struct
+    /// literal's field list.
+    fn with_no_struct_literal<T>(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<T, CompilerError>,
+    ) -> Result<T, CompilerError> {
+        let previous = self.no_struct_literal;
+        self.no_struct_literal = true;
+        let result = f(self);
+        self.no_struct_literal = previous;
+        result
+    }
+
+    /// Runs `f` with struct-literal parsing re-enabled, restoring the
+    /// previous setting afterward (even if `f` errors).
+    ///
+    /// Used inside parentheses and call argument lists, which are
+    /// unambiguous even within an `if`/`while` condition.
+    fn with_struct_literal_allowed<T>(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<T, CompilerError>,
+    ) -> Result<T, CompilerError> {
+        let previous = self.no_struct_literal;
+        self.no_struct_literal = false;
+        let result = f(self);
+        self.no_struct_literal = previous;
+        result
     }
 
     /// Consumes the current token if it matches `kind`, otherwise
     /// returns a [`CompilerError::UnexpectedToken`].
-    fn expect(&mut self, kind: TokenKind, expected: &str) -> Result<Token, CompilerError> {
+    fn expect(
+        &mut self,
+        kind: TokenKind,
+        expected: &str,
+    ) -> Result<Token, CompilerError> {
         if self.check(&kind) {
             Ok(self.advance())
         } else {

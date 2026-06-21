@@ -1,0 +1,90 @@
+// Phase 3+ — Advanced OOP
+// Demonstrates: inheritance, interfaces (traits), abstraction,
+//               encapsulation, polymorphism, super, auto-constructor
+
+// ── Interface (trait) ───────────────────────────────────────────────────
+
+interface Speakable {
+    func speak()
+}
+
+interface Named {
+    func name() -> string
+}
+
+// ── Abstract base class ───────────────────────────────────────────────────
+
+abstract class Animal implements Speakable {
+    protected_name: string
+
+    func init(name: string) {
+        this.protected_name = name
+    }
+
+    abstract func speak()
+
+    func label() -> string {
+        return "Animal: " + this.protected_name
+    }
+}
+
+// ── Concrete subclass with override + super ───────────────────────────────
+
+class Dog extends Animal implements Named {
+    private breed: string
+
+    func init(name: string, breed: string) {
+        super.init(name)
+        this.breed = breed
+    }
+
+    func speak() {
+        print(this.protected_name + " says woof")
+    }
+
+    func name() -> string {
+        return this.protected_name
+    }
+
+    func breed_name() -> string {
+        return this.breed
+    }
+}
+
+class Cat extends Animal {
+    func speak() {
+        print(this.protected_name + " says meow")
+    }
+}
+
+// ── Polymorphism via dynamic dispatch ─────────────────────────────────────
+
+func announce(speaker: Animal) {
+    speaker.speak()
+}
+
+print("--- Inheritance + auto-constructor ---")
+
+let dog = Dog("Rex", "Labrador")
+print(dog.label())
+dog.speak()
+print(dog.name())
+print(dog.breed_name())
+
+print("")
+print("--- Polymorphism ---")
+
+let cat = Cat("Whiskers")
+announce(cat)
+announce(dog)
+
+print("")
+print("--- Encapsulation (private field) ---")
+print("Use breed_name() instead of direct access:")
+print(dog.breed_name())
+
+print("")
+print("--- Abstract class cannot be instantiated ---")
+
+// Uncomment to see compile error BZ1023:
+// let a = Animal("ghost")

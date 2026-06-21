@@ -1,0 +1,72 @@
+// Phase 2 — Structs
+// Demonstrates: declarations, struct literals, field access, passing structs to functions
+
+struct Point {
+    x: int
+    y: int
+}
+
+struct User {
+    id: int
+    name: string
+    age: int
+}
+
+struct Rectangle {
+    width: int
+    height: int
+}
+
+func area(r: Rectangle) -> int {
+    return r.width * r.height
+}
+
+func perimeter(r: Rectangle) -> int {
+    return 2 * (r.width + r.height)
+}
+
+func describe_user(u: User) {
+    print("User #" + str(u.id) + ": " + u.name + ", age " + str(u.age))
+}
+
+func distance_from_origin(p: Point) -> int {
+    // Approximate integer distance using abs values
+    return p.x + p.y
+}
+
+print("--- Structs ---")
+
+let p = Point {
+    x: 3,
+    y: 4
+}
+print("Point x:")
+print(p.x)
+print("Point y:")
+print(p.y)
+
+let user = User {
+    id: 1,
+    name: "Bart",
+    age: 25
+}
+describe_user(user)
+print("Name field directly:")
+print(user.name)
+
+let rect = Rectangle {
+    width: 10,
+    height: 5
+}
+print("Rectangle area:")
+print(area(rect))
+print("Rectangle perimeter:")
+print(perimeter(rect))
+
+// Nested struct usage
+let origin = Point {
+    x: 0,
+    y: 0
+}
+print("Distance from origin:")
+print(distance_from_origin(p))

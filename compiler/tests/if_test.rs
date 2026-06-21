@@ -94,7 +94,7 @@ fn parse_if_body_has_statements() {
     let prog = parse_source("if true { let x = 1 }").unwrap();
     match &prog.statements[0] {
         Statement::IfStatement { then_branch, .. } => {
-            assert_eq!(then_branch.statements.len(), 1);
+            assert_eq!(then_branch.len(), 1);
         }
         other => panic!("expected IfStatement, got {other:?}"),
     }
@@ -108,7 +108,7 @@ fn parse_else_body_has_statements() {
             else_branch: Some(blk),
             ..
         } => {
-            assert_eq!(blk.statements.len(), 1);
+            assert_eq!(blk.len(), 1);
         }
         other => panic!("expected IfStatement with else, got {other:?}"),
     }
@@ -123,8 +123,8 @@ fn parse_else_if_chain() {
             else_branch: Some(blk),
             ..
         } => {
-            assert_eq!(blk.statements.len(), 1);
-            assert!(matches!(blk.statements[0], Statement::IfStatement { .. }));
+            assert_eq!(blk.len(), 1);
+            assert!(matches!(blk[0], Statement::IfStatement { .. }));
         }
         other => panic!("expected else-if structure, got {other:?}"),
     }
@@ -136,7 +136,7 @@ fn parse_nested_if_in_then_branch() {
     match &prog.statements[0] {
         Statement::IfStatement { then_branch, .. } => {
             assert!(matches!(
-                then_branch.statements[0],
+                then_branch[0],
                 Statement::IfStatement { .. }
             ));
         }
