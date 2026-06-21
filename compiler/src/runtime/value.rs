@@ -1,8 +1,8 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
 
 use crate::ast::{Statement, Visibility};
 use super::environment::Environment;
@@ -82,6 +82,8 @@ pub enum RuntimeValue {
     Channel(Arc<Mutex<std::sync::mpsc::Receiver<RuntimeValue>>>),
     /// A channel sender half.
     ChannelSender(Arc<Mutex<std::sync::mpsc::Sender<RuntimeValue>>>),
+    /// An open database connection (`import db`).
+    DbConnection(Arc<Mutex<super::db_state::DbState>>),
 }
 
 impl RuntimeValue {
@@ -106,6 +108,7 @@ impl RuntimeValue {
             RuntimeValue::EnumVariant { .. } => "EnumVariant",
             RuntimeValue::Channel(_)      => "Channel",
             RuntimeValue::ChannelSender(_) => "ChannelSender",
+            RuntimeValue::DbConnection(_) => "DbConnection",
         }
     }
 }
@@ -142,6 +145,7 @@ impl fmt::Display for RuntimeValue {
             RuntimeValue::Builtin { name, .. }  => write!(f, "<builtin {name}>"),
             RuntimeValue::Channel(_)            => write!(f, "<channel>"),
             RuntimeValue::ChannelSender(_)      => write!(f, "<channel_sender>"),
+            RuntimeValue::DbConnection(_)       => write!(f, "<db_connection>"),
             RuntimeValue::EnumVariant { enum_name, variant, payload } => {
                 if let Some(p) = payload {
                     write!(f, "{enum_name}::{variant}({p})")

@@ -42,10 +42,39 @@ fn test_import_http_and_json_modules() {
         import json
         print(type(http.get))
         print(type(http.post))
+        print(type(http.put))
+        print(type(http.delete))
+        print(type(http.patch))
         let s = json.encode(42)
         print(s)
         "#,
     )
     .unwrap();
-    assert_eq!(out, "Builtin\nBuiltin\n42\n");
+    assert_eq!(
+        out,
+        "Builtin\nBuiltin\nBuiltin\nBuiltin\nBuiltin\n42\n"
+    );
+}
+
+#[test]
+fn test_import_db_module() {
+    let out = run_source(
+        r#"
+        import db
+        print(type(db.open))
+        print(type(db.execute))
+        print(type(db.query))
+        let conn = db.open(":memory:")
+        print(type(conn))
+        db.execute(conn, "CREATE TABLE t (v INTEGER)")
+        db.execute(conn, "INSERT INTO t VALUES (7)")
+        let rows = db.query(conn, "SELECT v FROM t")
+        print(type(rows))
+        db.close(conn)
+        "#,
+    )
+    .unwrap();
+    assert!(out.contains("Builtin"));
+    assert!(out.contains("DbConnection"));
+    assert!(out.contains("Array"));
 }

@@ -1,0 +1,20 @@
+// Database connectivity example — SQLite via import db
+
+import db
+
+let conn = db.open(":memory:")
+
+db.execute(conn, "CREATE TABLE users (id INTEGER, name TEXT)")
+db.execute(conn, "INSERT INTO users VALUES (1, 'Alice')")
+db.execute(conn, "INSERT INTO users VALUES (2, 'Bob')")
+
+let rows = db.query(conn, "SELECT id, name FROM users ORDER BY id")
+print("users:")
+print(rows)
+
+let affected = db.execute(conn, "DELETE FROM users WHERE id = 1")
+print("deleted rows:")
+print(affected)
+
+db.close(conn)
+print("done")

@@ -7,6 +7,9 @@ import json
 print("--- HTTP module ---")
 print(type(http.get))
 print(type(http.post))
+print(type(http.put))
+print(type(http.delete))
+print(type(http.patch))
 
 print("")
 print("--- JSON encode / decode ---")
