@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::ast::{BinaryOperator, Expression, Program, Statement, UnaryOperator};
+use crate::ast::{BinaryOperator, Expression, Program, Statement, UnaryOperator, Visibility};
 use crate::diagnostics::CompilerError;
 use super::environment::Environment;
 use super::value::{BzClass, BzFunction, RuntimeValue};
@@ -44,6 +44,10 @@ pub fn execute(program: Program) -> Result<(), CompilerError> {
 pub struct Interpreter<W: std::io::Write> {
     environment: Rc<RefCell<Environment>>,
     stdout: W,
+    /// Class whose method is currently executing (`this` / `super` context).
+    method_class: Option<String>,
+    /// Receiver object for the active method call.
+    method_receiver: Option<Rc<RuntimeValue>>,
 }
 
 impl<W: std::io::Write> Interpreter<W> {
@@ -52,7 +56,12 @@ impl<W: std::io::Write> Interpreter<W> {
         let env = Rc::new(RefCell::new(Environment::new()));
         // Register stdlib builtins into the global environment.
         register_builtins(&env);
-        Self { environment: env, stdout }
+        Self {
+            environment: env,
+            stdout,
+            method_class: None,
+            method_receiver: None,
+        }
     }
 
     /// Interprets a complete program.
@@ -100,12 +109,18 @@ impl<W: std::io::Write> Interpreter<W> {
                 self.eval_expr(expression)?;
                 Ok(None)
             }
-            Statement::FunctionDeclaration { name, params, body, line, column, .. } => {
+            Statement::FunctionDeclaration { name, params, body, line, column, visibility, is_abstract, .. } => {
+                if *is_abstract {
+                    return Ok(None);
+                }
                 let func = RuntimeValue::Function(Rc::new(BzFunction {
                     name: name.clone(),
                     params: params.iter().map(|p| p.name.clone()).collect(),
                     body: body.clone(),
                     closure: self.environment.clone(),
+                    owner_class: None,
+                    visibility: *visibility,
+                    is_abstract: false,
                 }));
                 self.environment.borrow_mut().define(
                     name.clone(), func, true, *line, *column,
@@ -204,67 +219,105 @@ impl<W: std::io::Write> Interpreter<W> {
                     params: field_names,
                     body: vec![],
                     closure: self.environment.clone(),
+                    owner_class: None,
+                    visibility: Visibility::Public,
+                    is_abstract: false,
                 }));
                 self.environment.borrow_mut().define(
                     format!("__struct__{name}"), func, true, *line, *column,
                 ).unwrap_or(()); // ignore if re-defined in tests
                 Ok(None)
             }
-            Statement::ClassDeclaration { name, fields, methods, line, column, extends, implements } => {
-                // Build method map — own methods first
+            Statement::ClassDeclaration {
+                name,
+                fields,
+                methods,
+                line,
+                column,
+                extends,
+                is_abstract,
+                ..
+            } => {
                 let mut method_map: HashMap<String, Rc<BzFunction>> = HashMap::new();
+                let mut field_visibility: HashMap<String, Visibility> = HashMap::new();
+                let mut all_fields: Vec<String> = Vec::new();
+                let parent_name = extends.clone();
 
-                // Inherit parent class methods and fields if `extends` is given
-                let mut inherited_fields: Vec<String> = Vec::new();
-                if let Some(parent_name) = extends {
+                if let Some(ref parent_name) = parent_name {
                     if let Ok(RuntimeValue::Class(parent_class)) =
                         self.environment.borrow().get(parent_name, *line, *column)
                     {
-                        // Inherit parent fields
-                        inherited_fields = parent_class.fields.clone();
-                        // Inherit parent methods (child can override)
+                        all_fields = parent_class.fields.clone();
+                        field_visibility = parent_class.field_visibility.clone();
                         for (mname, mfunc) in &parent_class.methods {
                             method_map.insert(mname.clone(), mfunc.clone());
                         }
                     }
                 }
 
-                // Own methods override inherited ones
-                for m in methods {
-                    if let Statement::FunctionDeclaration { name: mname, params, body, .. } = m {
-                        method_map.insert(mname.clone(), Rc::new(BzFunction {
-                            name: mname.clone(),
-                            params: params.iter().map(|p| p.name.clone()).collect(),
-                            body: body.clone(),
-                            closure: self.environment.clone(),
-                        }));
-                    }
-                }
-
-                // Merge: inherited fields first, then own fields (no duplicates)
-                let mut all_fields = inherited_fields;
                 for f in fields {
                     if !all_fields.contains(&f.name) {
                         all_fields.push(f.name.clone());
+                    }
+                    field_visibility.insert(f.name.clone(), f.visibility);
+                }
+
+                for m in methods {
+                    if let Statement::FunctionDeclaration {
+                        name: mname,
+                        params,
+                        body,
+                        visibility,
+                        is_abstract: method_abstract,
+                        ..
+                    } = m
+                    {
+                        if *method_abstract {
+                            continue;
+                        }
+                        method_map.insert(
+                            mname.clone(),
+                            Rc::new(BzFunction {
+                                name: mname.clone(),
+                                params: params.iter().map(|p| p.name.clone()).collect(),
+                                body: body.clone(),
+                                closure: self.environment.clone(),
+                                owner_class: Some(name.clone()),
+                                visibility: *visibility,
+                                is_abstract: false,
+                            }),
+                        );
                     }
                 }
 
                 let class = RuntimeValue::Class(Rc::new(BzClass {
                     name: name.clone(),
+                    parent: parent_name,
+                    is_abstract: *is_abstract,
                     fields: all_fields,
+                    field_visibility,
                     methods: method_map,
                 }));
                 self.environment.borrow_mut().define(
                     name.clone(), class, true, *line, *column,
                 )?;
-                let _ = implements; // interface checking is structural; stored for docs
                 Ok(None)
             }
             Statement::FieldAssignment { object, field, value, line, column } => {
                 let obj_val = self.eval_expr(object)?;
                 let new_val = self.eval_expr(value)?;
                 match &obj_val {
-                    RuntimeValue::Object { fields, .. } => {
+                    RuntimeValue::Object { class_name, field_visibility, fields, .. } => {
+                        if matches!(field_visibility.get(field), Some(Visibility::Private)) {
+                            if self.method_class.as_deref() != Some(class_name.as_str()) {
+                                return Err(CompilerError::PrivateFieldAccess {
+                                    class_name: class_name.clone(),
+                                    field: field.clone(),
+                                    line: *line,
+                                    column: *column,
+                                });
+                            }
+                        }
                         fields.borrow_mut().insert(field.clone(), new_val);
                     }
                     RuntimeValue::Struct { fields: _, .. } => {
@@ -455,6 +508,28 @@ impl<W: std::io::Write> Interpreter<W> {
                     other => Ok(other), // non-channel await is a no-op
                 }
             }
+            Expression::SuperExpr { line, column } => {
+                let class_name = self.method_class.clone().ok_or(CompilerError::InvalidSuper {
+                    line: *line,
+                    column: *column,
+                })?;
+                let receiver = self.method_receiver.clone().ok_or(CompilerError::InvalidSuper {
+                    line: *line,
+                    column: *column,
+                })?;
+                let parent_class = self.lookup_class(&class_name, *line, *column)?
+                    .parent
+                    .clone()
+                    .ok_or(CompilerError::RuntimeException {
+                        message: format!("class \"{class_name}\" has no parent for super"),
+                        line: *line,
+                        column: *column,
+                    })?;
+                Ok(RuntimeValue::SuperHandle {
+                    receiver,
+                    parent_class,
+                })
+            }
         }
     }
 
@@ -577,17 +652,48 @@ impl<W: std::io::Write> Interpreter<W> {
                 func(args, line, column)
             }
             RuntimeValue::Class(class) => {
-                // Class call → construct a new object instance.
+                if class.is_abstract {
+                    return Err(CompilerError::AbstractClassInstantiation {
+                        name: class.name.clone(),
+                        line,
+                        column,
+                    });
+                }
                 let fields_map: HashMap<String, RuntimeValue> = class
                     .fields
                     .iter()
                     .map(|f| (f.clone(), RuntimeValue::Null))
                     .collect();
-                Ok(RuntimeValue::Object {
+                let receiver = Rc::new(RuntimeValue::Object {
                     class_name: class.name.clone(),
+                    parent_class: class.parent.clone(),
                     fields: Rc::new(RefCell::new(fields_map)),
                     methods: class.methods.clone(),
-                })
+                    field_visibility: class.field_visibility.clone(),
+                });
+
+                if let Some(init) = class.methods.get("init") {
+                    if init.params.len() != args.len() {
+                        return Err(CompilerError::ArityMismatch {
+                            name: format!("{}.init", class.name),
+                            expected: init.params.len(),
+                            found: args.len(),
+                            line,
+                            column,
+                        });
+                    }
+                    self.call_bound_method(receiver.clone(), init.clone(), args, line, column)?;
+                } else if !args.is_empty() {
+                    return Err(CompilerError::ArityMismatch {
+                        name: class.name.clone(),
+                        expected: 0,
+                        found: args.len(),
+                        line,
+                        column,
+                    });
+                }
+
+                Ok(Rc::try_unwrap(receiver).unwrap_or_else(|rc| (*rc).clone()))
             }
             other => Err(CompilerError::NotCallable {
                 found:  format!("{}", other.type_name()),
@@ -655,7 +761,11 @@ impl<W: std::io::Write> Interpreter<W> {
             call_env.borrow_mut().define(name.clone(), val, false, line, column)?;
         }
         let previous = std::mem::replace(&mut self.environment, call_env);
+        let prev_class = std::mem::replace(&mut self.method_class, method.owner_class.clone());
+        let prev_receiver = std::mem::replace(&mut self.method_receiver, Some(receiver.clone()));
         let result   = self.exec_block(&method.body);
+        self.method_receiver = prev_receiver;
+        self.method_class = prev_class;
         self.environment = previous;
         // The Object's fields are stored behind an Rc<RefCell<...>> so any
         // FieldAssignment inside the method already mutated the shared state
@@ -698,6 +808,21 @@ impl<W: std::io::Write> Interpreter<W> {
     ) -> Result<RuntimeValue, CompilerError> {
         let obj_val = self.eval_expr(object)?;
         match &obj_val {
+            RuntimeValue::SuperHandle { receiver, parent_class } => {
+                let parent = self.lookup_class(parent_class, line, column)?;
+                if let Some(method) = parent.methods.get(field) {
+                    return Ok(RuntimeValue::BoundMethod {
+                        receiver: receiver.clone(),
+                        method: method.clone(),
+                    });
+                }
+                return Err(CompilerError::NoSuchField {
+                    struct_name: parent_class.clone(),
+                    field: field.to_string(),
+                    line,
+                    column,
+                });
+            }
             RuntimeValue::Struct { name, fields } => {
                 fields.get(field).cloned().ok_or_else(|| CompilerError::NoSuchField {
                     struct_name: name.clone(),
@@ -705,13 +830,21 @@ impl<W: std::io::Write> Interpreter<W> {
                     line, column,
                 })
             }
-            RuntimeValue::Object { class_name, fields, methods } => {
-                // Check fields first, then methods.
+            RuntimeValue::Object { class_name, fields, methods, field_visibility, .. } => {
+                if matches!(field_visibility.get(field), Some(Visibility::Private)) {
+                    if self.method_class.as_deref() != Some(class_name.as_str()) {
+                        return Err(CompilerError::PrivateFieldAccess {
+                            class_name: class_name.clone(),
+                            field: field.to_string(),
+                            line,
+                            column,
+                        });
+                    }
+                }
                 if let Some(val) = fields.borrow().get(field).cloned() {
                     return Ok(val);
                 }
                 if let Some(method) = methods.get(field).cloned() {
-                    // Bind the method to this object.
                     let bound = RuntimeValue::BoundMethod {
                         receiver: Rc::new(obj_val.clone()),
                         method,
@@ -724,11 +857,36 @@ impl<W: std::io::Write> Interpreter<W> {
                     line, column,
                 })
             }
+            RuntimeValue::Map(map) => {
+                map.borrow().get(field).cloned().ok_or_else(|| CompilerError::NoSuchField {
+                    struct_name: "Map".to_string(),
+                    field: field.to_string(),
+                    line, column,
+                })
+            }
             other => Err(CompilerError::TypeMismatch {
                 operation: "field access '.'".to_string(),
-                expected:  "Struct or Object".to_string(),
+                expected:  "Struct, Object, Map, or super".to_string(),
                 found:     other.type_name().to_string(),
                 line, column,
+            }),
+        }
+    }
+
+    fn lookup_class(
+        &self,
+        name: &str,
+        line: usize,
+        column: usize,
+    ) -> Result<Rc<BzClass>, CompilerError> {
+        match self.environment.borrow().get(name, line, column)? {
+            RuntimeValue::Class(class) => Ok(class),
+            other => Err(CompilerError::TypeMismatch {
+                operation: "class lookup".to_string(),
+                expected: "Class".to_string(),
+                found: other.type_name().to_string(),
+                line,
+                column,
             }),
         }
     }
@@ -920,21 +1078,15 @@ impl<W: std::io::Write> Interpreter<W> {
         line: usize,
         column: usize,
     ) -> StmtResult {
-        // Evaluate the callable then spawn it in an OS thread.
+        // Run inline for now — Rc-based values are not Send across OS threads.
         let callee = self.eval_expr(expression)?;
         match callee {
             RuntimeValue::Function(func) => {
-                let func_clone = func.clone();
-                // Capture a snapshot of the closure environment values.
-                let captured_env = Rc::new(RefCell::new(
-                    Environment::snapshot(&func_clone.closure.borrow()),
-                ));
-                let body = func_clone.body.clone();
-                std::thread::spawn(move || {
-                    let mut interp = Interpreter::new(std::io::stdout());
-                    *interp.environment.borrow_mut() = captured_env.borrow().clone();
-                    let _ = interp.exec_block(&body);
-                });
+                let _ = self.call_function(func, vec![], line, column)?;
+                Ok(None)
+            }
+            RuntimeValue::BoundMethod { receiver, method } => {
+                let _ = self.call_bound_method(receiver, method, vec![], line, column)?;
                 Ok(None)
             }
             other => Err(CompilerError::NotCallable {
@@ -1549,41 +1701,110 @@ fn build_http_module() -> RuntimeValue {
         if args.len() < 2 {
             return Err(CompilerError::ArityMismatch { name: "http.post".into(), expected: 2, found: args.len(), line, column });
         }
-        // Stub: returns the body that would be sent
+        let url = match &args[0] {
+            RuntimeValue::String(s) => s.clone(),
+            other => return Err(CompilerError::TypeMismatch {
+                operation: "http.post()".into(), expected: "String".into(),
+                found: other.type_name().to_string(), line, column,
+            }),
+        };
         let body = format!("{}", args[1]);
-        Ok(RuntimeValue::String(format!("POST to {}: {}", args[0], body)))
+        let content_type = if args.len() >= 3 {
+            match &args[2] {
+                RuntimeValue::String(s) => s.clone(),
+                other => return Err(CompilerError::TypeMismatch {
+                    operation: "http.post()".into(), expected: "String".into(),
+                    found: other.type_name().to_string(), line, column,
+                }),
+            }
+        } else {
+            "application/json".to_string()
+        };
+        match simple_http_post(&url, &body, &content_type) {
+            Ok(response) => Ok(RuntimeValue::String(response)),
+            Err(e) => Err(CompilerError::RuntimeException { message: e, line, column }),
+        }
     }));
     RuntimeValue::Map(Rc::new(RefCell::new(map)))
 }
 
-fn simple_http_get(url: &str) -> Result<String, String> {
-    use std::io::{Read, Write};
-    use std::net::TcpStream;
-    // Parse URL: http://host[:port]/path
-    let url = url.trim_start_matches("http://").trim_start_matches("https://");
-    let (host_path, _is_https) = (url, false);
-    let slash = host_path.find('/').unwrap_or(host_path.len());
-    let host_port = &host_path[..slash];
-    let path = if slash < host_path.len() { &host_path[slash..] } else { "/" };
-    let (host, port) = if let Some(c) = host_port.find(':') {
-        let p: u16 = host_port[c+1..].parse().unwrap_or(80);
-        (&host_port[..c], p)
+/// Parsed host, port, path, and whether TLS is requested.
+struct HttpUrlParts<'a> {
+    host: &'a str,
+    port: u16,
+    path: &'a str,
+    is_https: bool,
+}
+
+fn parse_http_url(url: &str) -> Result<HttpUrlParts<'_>, String> {
+    let is_https = url.starts_with("https://");
+    let stripped = url
+        .trim_start_matches("https://")
+        .trim_start_matches("http://");
+    let slash = stripped.find('/').unwrap_or(stripped.len());
+    let host_port = &stripped[..slash];
+    let path = if slash < stripped.len() { &stripped[slash..] } else { "/" };
+    let (host, port) = if let Some(colon) = host_port.find(':') {
+        let p: u16 = host_port[colon + 1..]
+            .parse()
+            .map_err(|_| format!("invalid port in URL: {url}"))?;
+        (&host_port[..colon], p)
+    } else if is_https {
+        (host_port, 443)
     } else {
         (host_port, 80)
     };
-    let addr = format!("{host}:{port}");
+    Ok(HttpUrlParts { host, port, path, is_https })
+}
+
+fn http_request(
+    method: &str,
+    url: &str,
+    body: Option<&str>,
+    content_type: Option<&str>,
+) -> Result<String, String> {
+    if parse_http_url(url)?.is_https {
+        return Err("https URLs are not supported yet; use http://".to_string());
+    }
+
+    use std::io::{Read, Write};
+    use std::net::TcpStream;
+
+    let parts = parse_http_url(url)?;
+    let addr = format!("{}:{}", parts.host, parts.port);
     let mut stream = TcpStream::connect(&addr).map_err(|e| e.to_string())?;
-    stream.set_read_timeout(Some(std::time::Duration::from_secs(5))).ok();
-    let request = format!("GET {path} HTTP/1.0\r\nHost: {host}\r\nConnection: close\r\n\r\n");
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_secs(10)))
+        .ok();
+
+    let mut request = format!("{method} {} HTTP/1.0\r\nHost: {}\r\nConnection: close\r\n", parts.path, parts.host);
+    if let Some(b) = body {
+        let ct = content_type.unwrap_or("application/json");
+        request.push_str(&format!("Content-Type: {ct}\r\n"));
+        request.push_str(&format!("Content-Length: {}\r\n", b.len()));
+    }
+    request.push_str("\r\n");
+    if let Some(b) = body {
+        request.push_str(b);
+    }
+
     stream.write_all(request.as_bytes()).map_err(|e| e.to_string())?;
     let mut response = String::new();
     stream.read_to_string(&mut response).map_err(|e| e.to_string())?;
-    // Extract body (after \r\n\r\n)
+
     if let Some(pos) = response.find("\r\n\r\n") {
-        Ok(response[pos+4..].to_string())
+        Ok(response[pos + 4..].to_string())
     } else {
         Ok(response)
     }
+}
+
+fn simple_http_get(url: &str) -> Result<String, String> {
+    http_request("GET", url, None, None)
+}
+
+fn simple_http_post(url: &str, body: &str, content_type: &str) -> Result<String, String> {
+    http_request("POST", url, Some(body), Some(content_type))
 }
 
 fn build_math_module() -> RuntimeValue {

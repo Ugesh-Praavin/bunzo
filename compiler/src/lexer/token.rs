@@ -71,6 +71,16 @@ pub enum TokenKind {
     /// `move` — ownership transfer.
     Move,
 
+    // ── OOP access / abstraction ─────────────────────────────────────
+    /// `abstract` — abstract class or method.
+    Abstract,
+    /// `public` — public field or method.
+    Public,
+    /// `private` — private field or method.
+    Private,
+    /// `trait` — alias for `interface`.
+    Trait,
+
     // ── Concurrency / Phase 10 Keywords ──────────────────────────────
     /// `spawn` — spawn a concurrent task.
     Spawn,
@@ -291,6 +301,10 @@ pub fn lookup_keyword(word: &str) -> Option<TokenKind> {
         "match"      => Some(TokenKind::Match),
         "switch"     => Some(TokenKind::Switch),
         "move"       => Some(TokenKind::Move),
+        "abstract"   => Some(TokenKind::Abstract),
+        "public"     => Some(TokenKind::Public),
+        "private"    => Some(TokenKind::Private),
+        "trait"      => Some(TokenKind::Trait),
         // Concurrency
         "spawn"   => Some(TokenKind::Spawn),
         "async"   => Some(TokenKind::Async),

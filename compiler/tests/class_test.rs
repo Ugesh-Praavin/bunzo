@@ -68,3 +68,69 @@ fn test_class_field_modification() {
     .unwrap();
     assert_eq!(out, "10\n20\n");
 }
+
+#[test]
+fn test_inheritance_super_and_auto_constructor() {
+    let out = run_source(
+        r#"
+        abstract class Base {
+            value: int
+            abstract func bump()
+            func init() {
+                this.value = 1
+            }
+        }
+        class Child extends Base {
+            func bump() {
+                this.value = this.value + 10
+            }
+            func show() -> int {
+                return this.value
+            }
+        }
+        let c = Child()
+        c.bump()
+        print(c.show())
+        "#,
+    )
+    .unwrap();
+    assert_eq!(out, "11\n");
+}
+
+#[test]
+fn test_interface_implements_and_private_field() {
+    let result = run_source(
+        r#"
+        interface Greetable {
+            func greet()
+        }
+        class Greeter implements Greetable {
+            private secret: string
+            func init() {
+                this.secret = "hidden"
+            }
+            func greet() {
+                print(this.secret)
+            }
+        }
+        let g = Greeter()
+        g.greet()
+        "#,
+    );
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), "hidden\n");
+}
+
+#[test]
+fn test_abstract_class_instantiation_rejected() {
+    let result = run_source(
+        r#"
+        abstract class Thing {
+            abstract func go()
+        }
+        let t = Thing()
+        "#,
+    );
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("BZ1023"));
+}

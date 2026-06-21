@@ -20,6 +20,19 @@ pub struct Program {
 
 // ── Function Parameters ──────────────────────────────────────────────────
 
+/// Field/method visibility for classes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Visibility {
+    Public,
+    Private,
+}
+
+impl Default for Visibility {
+    fn default() -> Self {
+        Self::Public
+    }
+}
+
 /// A single parameter in a function signature, e.g. `name: type`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
@@ -27,9 +40,21 @@ pub struct Parameter {
     pub name: String,
     /// The parameter's declared type annotation (e.g. `int`, `string`).
     pub type_name: String,
+    /// Optional visibility (`public` / `private`); defaults to public.
+    pub visibility: Visibility,
     /// Line where the parameter name appears.
     pub line: usize,
     /// Column where the parameter name appears.
+    pub column: usize,
+}
+
+/// A method signature inside an `interface` / `trait` declaration.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MethodSignature {
+    pub name: String,
+    pub params: Vec<Parameter>,
+    pub return_type: Option<String>,
+    pub line: usize,
     pub column: usize,
 }
 
@@ -121,12 +146,13 @@ pub enum Statement {
         /// The function's parameters, in declaration order.
         params: Vec<Parameter>,
         /// The declared return type name, if any.
-        ///
-        /// `None` means the function declares no return type (an implicit
-        /// void/`null` return).
         return_type: Option<String>,
-        /// The statements making up the function body.
+        /// The statements making up the function body (empty for abstract methods).
         body: Vec<Statement>,
+        /// Method/function visibility.
+        visibility: Visibility,
+        /// `true` for abstract methods (no body).
+        is_abstract: bool,
         /// Line where the `func` keyword appears.
         line: usize,
         /// Column where the `func` keyword appears.
@@ -235,6 +261,8 @@ pub enum Statement {
         extends: Option<String>,
         /// Implemented interface names (`implements A, B`).
         implements: Vec<String>,
+        /// Whether this class cannot be instantiated directly.
+        is_abstract: bool,
         /// The class's fields, in declaration order.
         fields: Vec<Parameter>,
         /// The class's methods.
@@ -315,8 +343,7 @@ pub enum Statement {
     /// `interface Name { func method(params) -> type ... }`
     InterfaceDeclaration {
         name: String,
-        /// Method signatures: (method_name, param_types, return_type)
-        methods: Vec<(String, Vec<String>, Option<String>)>,
+        methods: Vec<MethodSignature>,
         line: usize,
         column: usize,
     },
@@ -484,6 +511,12 @@ pub enum Expression {
     /// `await expr` — await a future/channel.
     AwaitExpr {
         expression: Box<Expression>,
+        line: usize,
+        column: usize,
+    },
+
+    /// `super` — reference to the parent class (inside methods only).
+    SuperExpr {
         line: usize,
         column: usize,
     },

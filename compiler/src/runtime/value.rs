@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 
-use crate::ast::Statement;
+use crate::ast::{Statement, Visibility};
 use super::environment::Environment;
 
 /// A user-defined Bunzo function, as represented at runtime.
@@ -14,13 +14,19 @@ pub struct BzFunction {
     pub params: Vec<String>,
     pub body: Vec<Statement>,
     pub closure: Rc<RefCell<Environment>>,
+    pub owner_class: Option<String>,
+    pub visibility: Visibility,
+    pub is_abstract: bool,
 }
 
 /// A user-defined Bunzo class, as represented at runtime.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BzClass {
     pub name: String,
+    pub parent: Option<String>,
+    pub is_abstract: bool,
     pub fields: Vec<String>,
+    pub field_visibility: HashMap<String, Visibility>,
     pub methods: HashMap<String, Rc<BzFunction>>,
 }
 
@@ -44,8 +50,15 @@ pub enum RuntimeValue {
     Class(Rc<BzClass>),
     Object {
         class_name: std::string::String,
+        parent_class: Option<std::string::String>,
         fields: Rc<RefCell<HashMap<std::string::String, RuntimeValue>>>,
         methods: HashMap<std::string::String, Rc<BzFunction>>,
+        field_visibility: HashMap<std::string::String, Visibility>,
+    },
+    /// Handle for `super` inside a method — resolves parent methods.
+    SuperHandle {
+        receiver: Rc<RuntimeValue>,
+        parent_class: std::string::String,
     },
     BoundMethod {
         receiver: Rc<RuntimeValue>,
@@ -85,6 +98,7 @@ impl RuntimeValue {
             RuntimeValue::Struct { .. }   => "Struct",
             RuntimeValue::Class(_)        => "Class",
             RuntimeValue::Object { .. }   => "Object",
+            RuntimeValue::SuperHandle { .. } => "Super",
             RuntimeValue::BoundMethod { .. } => "BoundMethod",
             RuntimeValue::Builtin { .. }  => "Builtin",
             RuntimeValue::Array(_)        => "Array",
@@ -155,6 +169,7 @@ impl fmt::Display for RuntimeValue {
                 }
                 write!(f, "}}")
             }
+            RuntimeValue::SuperHandle { parent_class, .. } => write!(f, "<super {parent_class}>"),
             RuntimeValue::Object { class_name, fields, .. } => {
                 let fb = fields.borrow();
                 if fb.is_empty() {

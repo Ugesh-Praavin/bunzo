@@ -33,3 +33,19 @@ fn test_stdlib_builtins() {
     .unwrap();
     assert_eq!(out, "5\nString\nInteger\n100\n124\n");
 }
+
+#[test]
+fn test_import_http_and_json_modules() {
+    let out = run_source(
+        r#"
+        import http
+        import json
+        print(type(http.get))
+        print(type(http.post))
+        let s = json.encode(42)
+        print(s)
+        "#,
+    )
+    .unwrap();
+    assert_eq!(out, "Builtin\nBuiltin\n42\n");
+}

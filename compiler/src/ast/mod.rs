@@ -3,6 +3,6 @@
 pub mod node;
 
 pub use node::{
-    BinaryOperator, Expression, MatchArm, MatchPattern, Parameter,
-    Program, Statement, UnaryOperator,
+    BinaryOperator, Expression, MatchArm, MatchPattern, MethodSignature, Parameter,
+    Program, Statement, UnaryOperator, Visibility,
 };

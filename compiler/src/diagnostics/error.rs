@@ -284,6 +284,51 @@ pub enum CompilerError {
         line: usize,
         column: usize,
     },
+
+    /// Unknown parent class in `extends` (BZ1022).
+    UnknownParentClass {
+        name: String,
+        line: usize,
+        column: usize,
+    },
+
+    /// Cannot instantiate an abstract class (BZ1023).
+    AbstractClassInstantiation {
+        name: String,
+        line: usize,
+        column: usize,
+    },
+
+    /// Class does not implement a required interface method (BZ1024).
+    InterfaceNotImplemented {
+        class_name: String,
+        interface_name: String,
+        method_name: String,
+        line: usize,
+        column: usize,
+    },
+
+    /// Access to a private field from outside the class (BZ1025).
+    PrivateFieldAccess {
+        class_name: String,
+        field: String,
+        line: usize,
+        column: usize,
+    },
+
+    /// Abstract method not implemented in concrete class (BZ1026).
+    AbstractMethodNotImplemented {
+        class_name: String,
+        method_name: String,
+        line: usize,
+        column: usize,
+    },
+
+    /// `super` used outside of a class method (BZ1027).
+    InvalidSuper {
+        line: usize,
+        column: usize,
+    },
 }
 
 impl fmt::Display for CompilerError {
@@ -463,6 +508,42 @@ impl fmt::Display for CompilerError {
                 write!(
                     f,
                     "error[BZ1021]\n\nInvalid index type '{found}': arrays require Integer index, maps require String\n  --> line {line}, column {column}",
+                )
+            }
+            CompilerError::UnknownParentClass { name, line, column } => {
+                write!(
+                    f,
+                    "error[BZ1022]\n\nUnknown parent class \"{name}\"\n  --> line {line}, column {column}",
+                )
+            }
+            CompilerError::AbstractClassInstantiation { name, line, column } => {
+                write!(
+                    f,
+                    "error[BZ1023]\n\nCannot instantiate abstract class \"{name}\"\n  --> line {line}, column {column}",
+                )
+            }
+            CompilerError::InterfaceNotImplemented { class_name, interface_name, method_name, line, column } => {
+                write!(
+                    f,
+                    "error[BZ1024]\n\nClass \"{class_name}\" does not implement interface method \"{method_name}\" from \"{interface_name}\"\n  --> line {line}, column {column}",
+                )
+            }
+            CompilerError::PrivateFieldAccess { class_name, field, line, column } => {
+                write!(
+                    f,
+                    "error[BZ1025]\n\nCannot access private field \"{field}\" of class \"{class_name}\"\n  --> line {line}, column {column}",
+                )
+            }
+            CompilerError::AbstractMethodNotImplemented { class_name, method_name, line, column } => {
+                write!(
+                    f,
+                    "error[BZ1026]\n\nConcrete class \"{class_name}\" must implement abstract method \"{method_name}\"\n  --> line {line}, column {column}",
+                )
+            }
+            CompilerError::InvalidSuper { line, column } => {
+                write!(
+                    f,
+                    "error[BZ1027]\n\n'super' can only be used inside a class method\n  --> line {line}, column {column}",
                 )
             }
         }

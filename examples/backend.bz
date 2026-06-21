@@ -1,0 +1,55 @@
+// Phase 9 — Backend Features (HTTP client + JSON)
+// Demonstrates: import http, import json, GET/POST requests
+
+import http
+import json
+
+print("--- HTTP module ---")
+print(type(http.get))
+print(type(http.post))
+
+print("")
+print("--- JSON encode / decode ---")
+
+struct User {
+    id: int
+    name: string
+}
+
+let user = User {
+    id: 1,
+    name: "Bart"
+}
+
+let payload = json.encode(user)
+print("encoded user:")
+print(payload)
+
+let decoded = json.decode(payload)
+print("decoded:")
+print(decoded)
+
+print("")
+print("--- HTTP GET (httpbin.org) ---")
+
+try {
+    let body = http.get("http://httpbin.org/get")
+    print("GET response:")
+    print(body)
+} catch err {
+    print("GET failed (network may be unavailable):")
+    print(err)
+}
+
+print("")
+print("--- HTTP POST (httpbin.org) ---")
+
+try {
+    let post_body = json.encode(user)
+    let response = http.post("http://httpbin.org/post", post_body)
+    print("POST response:")
+    print(response)
+} catch err {
+    print("POST failed (network may be unavailable):")
+    print(err)
+}

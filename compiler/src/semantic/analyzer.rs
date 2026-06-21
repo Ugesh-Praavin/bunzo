@@ -10,10 +10,10 @@
 //! only appears inside a function.
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use crate::ast::{Expression, Program, Statement};
+use crate::ast::{Expression, Program, Statement, Visibility};
 use crate::diagnostics::CompilerError;
 
 /// A symbol defined in a lexical scope at compile-time.
@@ -156,32 +156,34 @@ pub fn analyze(program: &Program) -> Result<(), CompilerError> {
     analyzer.analyze_program(program)
 }
 
+struct MethodInfo {
+    arity: usize,
+    is_abstract: bool,
+}
+
 struct ClassInfo {
-    fields: Vec<String>,
+    is_abstract: bool,
+    extends: Option<String>,
+    implements: Vec<String>,
+    fields: HashMap<String, Visibility>,
+    methods: HashMap<String, MethodInfo>,
+    line: usize,
+    column: usize,
+}
+
+struct InterfaceInfo {
     methods: HashMap<String, usize>,
 }
 
 struct SemanticAnalyzer {
     current_scope: Rc<RefCell<Scope>>,
-    /// `true` while analyzing the body of a function declaration.
-    ///
-    /// Used to reject `return` statements that appear at the top level
-    /// or otherwise outside of any function.
     in_function: bool,
-    /// Depth of nested loops currently being analyzed.
-    ///
-    /// Used to reject `break`/`continue` statements that appear outside
-    /// of any loop.
     loop_depth: usize,
-    /// Declared struct types, mapping struct name to its declared field
-    /// names in declaration order.
-    ///
-    /// Structs share a single flat (global) namespace, separate from the
-    /// variable scope chain — there is no nested struct declaration in
-    /// Bunzo yet.
+    /// Class whose method body is currently being analyzed (`this` / `super` context).
+    current_class: Option<String>,
     struct_defs: HashMap<String, Vec<String>>,
-    /// Declared class types, mapping class name to its details.
     class_defs: HashMap<String, ClassInfo>,
+    interface_defs: HashMap<String, InterfaceInfo>,
 }
 
 impl SemanticAnalyzer {
@@ -202,9 +204,68 @@ impl SemanticAnalyzer {
             current_scope: global_scope,
             in_function: false,
             loop_depth: 0,
+            current_class: None,
             struct_defs: HashMap::new(),
             class_defs: HashMap::new(),
+            interface_defs: HashMap::new(),
         }
+    }
+
+    fn abstract_methods_inherited(&self, parent: &str) -> HashSet<String> {
+        let mut pending = HashSet::new();
+        let mut current = Some(parent.to_string());
+        while let Some(name) = current {
+            let Some(info) = self.class_defs.get(&name) else { break };
+            for (method_name, method_info) in &info.methods {
+                if method_info.is_abstract {
+                    pending.insert(method_name.clone());
+                } else {
+                    pending.remove(method_name);
+                }
+            }
+            current = info.extends.clone();
+        }
+        pending
+    }
+
+    fn check_field_visibility(
+        &self,
+        class_name: &str,
+        field: &str,
+        line: usize,
+        column: usize,
+    ) -> Result<(), CompilerError> {
+        let Some(info) = self.class_defs.get(class_name) else {
+            return Ok(());
+        };
+        if matches!(info.fields.get(field), Some(Visibility::Private)) {
+            if self.current_class.as_deref() != Some(class_name) {
+                return Err(CompilerError::PrivateFieldAccess {
+                    class_name: class_name.to_string(),
+                    field: field.to_string(),
+                    line,
+                    column,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    fn check_object_field_access(
+        &self,
+        object: &Expression,
+        field: &str,
+        line: usize,
+        column: usize,
+    ) -> Result<(), CompilerError> {
+        if let Expression::Identifier { name, .. } = object {
+            if name == "this" {
+                if let Some(class_name) = &self.current_class {
+                    self.check_field_visibility(class_name, field, line, column)?;
+                }
+            }
+        }
+        Ok(())
     }
 
     fn analyze_program(&mut self, program: &Program) -> Result<(), CompilerError> {
@@ -386,7 +447,16 @@ impl SemanticAnalyzer {
                 let field_names = fields.iter().map(|f| f.name.clone()).collect();
                 self.struct_defs.insert(name.clone(), field_names);
             }
-            Statement::ClassDeclaration { name, fields, methods, line, column, .. } => {
+            Statement::ClassDeclaration {
+                name,
+                extends,
+                implements,
+                is_abstract,
+                fields,
+                methods,
+                line,
+                column,
+            } => {
                 if self.struct_defs.contains_key(name) || self.class_defs.contains_key(name) {
                     return Err(CompilerError::DuplicateDeclaration {
                         name: name.clone(),
@@ -395,41 +465,148 @@ impl SemanticAnalyzer {
                     });
                 }
 
-                let mut seen = std::collections::HashSet::new();
+                if let Some(parent) = extends {
+                    if !self.class_defs.contains_key(parent) {
+                        return Err(CompilerError::UnknownParentClass {
+                            name: parent.clone(),
+                            line: *line,
+                            column: *column,
+                        });
+                    }
+                }
+
+                let mut seen_fields = HashSet::new();
+                let mut field_map = HashMap::new();
                 for field in fields {
-                    if !seen.insert(&field.name) {
+                    if !seen_fields.insert(&field.name) {
                         return Err(CompilerError::DuplicateDeclaration {
                             name: field.name.clone(),
                             line: field.line,
                             column: field.column,
                         });
                     }
+                    field_map.insert(field.name.clone(), field.visibility);
                 }
 
-                // Define class constructor in the enclosing scope
+                let mut method_map = HashMap::new();
+                for method_stmt in methods {
+                    if let Statement::FunctionDeclaration {
+                        name: method_name,
+                        params,
+                        is_abstract: method_abstract,
+                        ..
+                    } = method_stmt
+                    {
+                        method_map.insert(
+                            method_name.clone(),
+                            MethodInfo {
+                                arity: params.len(),
+                                is_abstract: *method_abstract,
+                            },
+                        );
+                    }
+                }
+
+                let mut pending_abstract = extends
+                    .as_ref()
+                    .map(|p| self.abstract_methods_inherited(p))
+                    .unwrap_or_default();
+                for (method_name, method_info) in &method_map {
+                    if method_info.is_abstract {
+                        pending_abstract.insert(method_name.clone());
+                    } else {
+                        pending_abstract.remove(method_name);
+                    }
+                }
+                if !*is_abstract && !pending_abstract.is_empty() {
+                    let missing = pending_abstract.into_iter().next().unwrap();
+                    return Err(CompilerError::AbstractMethodNotImplemented {
+                        class_name: name.clone(),
+                        method_name: missing,
+                        line: *line,
+                        column: *column,
+                    });
+                }
+
+                let mut all_interfaces = implements.clone();
+                if let Some(parent) = extends {
+                    if let Some(parent_info) = self.class_defs.get(parent) {
+                        for iface in &parent_info.implements {
+                            if !all_interfaces.contains(iface) {
+                                all_interfaces.push(iface.clone());
+                            }
+                        }
+                    }
+                }
+
+                for iface in &all_interfaces {
+                    let Some(iface_info) = self.interface_defs.get(iface) else {
+                        return Err(CompilerError::ModuleNotFound {
+                            name: iface.clone(),
+                            line: *line,
+                            column: *column,
+                        });
+                    };
+                    for (method_name, arity) in &iface_info.methods {
+                        match method_map.get(method_name) {
+                            Some(m) if m.arity == *arity && (!m.is_abstract || *is_abstract) => {}
+                            _ => {
+                                return Err(CompilerError::InterfaceNotImplemented {
+                                    class_name: name.clone(),
+                                    interface_name: iface.clone(),
+                                    method_name: method_name.clone(),
+                                    line: *line,
+                                    column: *column,
+                                });
+                            }
+                        }
+                    }
+                }
+
+                let init_arity = method_map
+                    .get("init")
+                    .filter(|m| !m.is_abstract)
+                    .map(|m| m.arity)
+                    .unwrap_or(0);
+
                 self.current_scope.borrow_mut().define_function(
                     name.clone(),
-                    0,
+                    init_arity,
                     *line,
                     *column,
                 )?;
 
-                let mut method_arities = HashMap::new();
-                for method_stmt in methods {
-                    if let Statement::FunctionDeclaration { name: method_name, params, .. } = method_stmt {
-                        method_arities.insert(method_name.clone(), params.len());
-                    }
-                }
+                self.class_defs.insert(
+                    name.clone(),
+                    ClassInfo {
+                        is_abstract: *is_abstract,
+                        extends: extends.clone(),
+                        implements: implements.clone(),
+                        fields: field_map,
+                        methods: method_map,
+                        line: *line,
+                        column: *column,
+                    },
+                );
 
-                self.class_defs.insert(name.clone(), ClassInfo {
-                    fields: fields.iter().map(|f| f.name.clone()).collect(),
-                    methods: method_arities,
-                });
-
                 for method_stmt in methods {
-                    if let Statement::FunctionDeclaration { params, body, line: m_line, column: m_col, .. } = method_stmt {
-                        let method_scope = Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
-                        method_scope.borrow_mut().define("this".to_string(), true, *m_line, *m_col)?;
+                    if let Statement::FunctionDeclaration {
+                        params,
+                        body,
+                        is_abstract: method_abstract,
+                        line: m_line,
+                        column: m_col,
+                        ..
+                    } = method_stmt
+                    {
+                        if *method_abstract {
+                            continue;
+                        }
+                        let method_scope =
+                            Rc::new(RefCell::new(Scope::with_parent(self.current_scope.clone())));
+                        method_scope
+                            .borrow_mut()
+                            .define("this".to_string(), true, *m_line, *m_col)?;
                         for param in params {
                             method_scope.borrow_mut().define(
                                 param.name.clone(),
@@ -439,19 +616,23 @@ impl SemanticAnalyzer {
                             )?;
                         }
 
-                        let previous_scope = std::mem::replace(&mut self.current_scope, method_scope);
+                        let previous_scope =
+                            std::mem::replace(&mut self.current_scope, method_scope);
                         let was_in_function = self.in_function;
+                        let previous_class = self.current_class.replace(name.clone());
                         self.in_function = true;
 
                         let result = self.analyze_block(body);
 
                         self.in_function = was_in_function;
+                        self.current_class = previous_class;
                         self.current_scope = previous_scope;
                         result?;
                     }
                 }
             }
-            Statement::FieldAssignment { object, value, .. } => {
+            Statement::FieldAssignment { object, field, value, line, column } => {
+                self.check_object_field_access(object, field, *line, *column)?;
                 self.analyze_expression(object)?;
                 self.analyze_expression(value)?;
             }
@@ -473,11 +654,16 @@ impl SemanticAnalyzer {
                 self.analyze_expression(value)?;
             }
             // ── Phase 4+ statements ───────────────────────────────────
-            Statement::ImportDeclaration { .. } => {
-                // Module resolution happens at runtime; semantic pass accepts.
-                Ok(())
+            Statement::ImportDeclaration { name, line, column, .. } => {
+                // Bind the module name so `http.get`-style field access type-checks.
+                self.current_scope.borrow_mut().define(
+                    name.clone(),
+                    false,
+                    *line,
+                    *column,
+                )?;
             }
-            Statement::ExportDeclaration { .. } => Ok(()),
+            Statement::ExportDeclaration { .. } => {}
             Statement::EnumDeclaration { name, line, column, .. } => {
                 if self.struct_defs.contains_key(name) || self.class_defs.contains_key(name) {
                     return Err(CompilerError::DuplicateDeclaration {
@@ -488,10 +674,14 @@ impl SemanticAnalyzer {
                 }
                 // Register enum as a "class" with no fields so constructors resolve.
                 self.class_defs.insert(name.clone(), ClassInfo {
-                    fields: vec![],
+                    is_abstract: false,
+                    extends: None,
+                    implements: vec![],
+                    fields: HashMap::new(),
                     methods: HashMap::new(),
+                    line: *line,
+                    column: *column,
                 });
-                Ok(())
             }
             Statement::MatchStatement { subject, arms, .. } => {
                 self.analyze_expression(subject)?;
@@ -508,11 +698,29 @@ impl SemanticAnalyzer {
                     self.current_scope = prev;
                     result?;
                 }
-                Ok(())
             }
-            Statement::InterfaceDeclaration { .. } => Ok(()), // structural typing — no deep check
+            Statement::InterfaceDeclaration { name, methods, line, column } => {
+                if self.interface_defs.contains_key(name)
+                    || self.class_defs.contains_key(name)
+                    || self.struct_defs.contains_key(name)
+                {
+                    return Err(CompilerError::DuplicateDeclaration {
+                        name: name.clone(),
+                        line: *line,
+                        column: *column,
+                    });
+                }
+                let mut method_map = HashMap::new();
+                for sig in methods {
+                    method_map.insert(sig.name.clone(), sig.params.len());
+                }
+                self.interface_defs.insert(
+                    name.clone(),
+                    InterfaceInfo { methods: method_map },
+                );
+            }
             Statement::SpawnStatement { expression, .. } => {
-                self.analyze_expression(expression)
+                self.analyze_expression(expression)?;
             }
         }
         Ok(())
@@ -561,6 +769,16 @@ impl SemanticAnalyzer {
                 // a plain analysis pass, since we don't yet have a type
                 // system to know whether they hold a function value.
                 if let Expression::Identifier { name, line: id_line, column: id_col } = callee.as_ref() {
+                    if let Some(class_info) = self.class_defs.get(name) {
+                        if class_info.is_abstract {
+                            return Err(CompilerError::AbstractClassInstantiation {
+                                name: name.clone(),
+                                line: *line,
+                                column: *column,
+                            });
+                        }
+                    }
+
                     let symbol = self.current_scope.borrow().lookup(name).ok_or_else(|| {
                         CompilerError::UndefinedVariable {
                             name: name.clone(),
@@ -644,12 +862,8 @@ impl SemanticAnalyzer {
                 Ok(())
             }
 
-            Expression::FieldAccess { object, .. } => {
-                // Without a full type system (Phase 4), we can't always
-                // know statically which struct type `object` evaluates
-                // to, so field existence is validated at runtime. We
-                // still recurse to catch undefined variables etc. in the
-                // object expression itself.
+            Expression::FieldAccess { object, field, line, column } => {
+                self.check_object_field_access(object, field, *line, *column)?;
                 self.analyze_expression(object)
             }
             // ── Phase 4+ expressions ──────────────────────────────────
@@ -680,6 +894,15 @@ impl SemanticAnalyzer {
             }
             Expression::AwaitExpr { expression, .. } => {
                 self.analyze_expression(expression)
+            }
+            Expression::SuperExpr { line, column } => {
+                if self.current_class.is_none() {
+                    return Err(CompilerError::InvalidSuper {
+                        line: *line,
+                        column: *column,
+                    });
+                }
+                Ok(())
             }
         }
     }

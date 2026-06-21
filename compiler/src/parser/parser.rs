@@ -42,7 +42,8 @@
 //! ```
 
 use crate::ast::{
-    BinaryOperator, Expression, Parameter, Program, Statement, UnaryOperator,
+    BinaryOperator, Expression, MethodSignature, Parameter, Program, Statement, UnaryOperator,
+    Visibility,
 };
 use crate::diagnostics::CompilerError;
 use crate::lexer::{Token, TokenKind};
@@ -124,8 +125,11 @@ impl Parser {
             TokenKind::Continue => self.parse_continue_statement(),
             TokenKind::Struct => self.parse_struct_declaration(),
             TokenKind::Class => self.parse_class_declaration(),
+            TokenKind::Interface | TokenKind::Trait => self.parse_interface_declaration(),
             TokenKind::Try => self.parse_try_catch_statement(),
             TokenKind::Throw => self.parse_throw_statement(),
+            TokenKind::Import => self.parse_import_declaration(),
+            TokenKind::Export => self.parse_export_declaration(),
             TokenKind::Identifier if self.check_next(&TokenKind::Equal) => {
                 self.parse_assignment_statement()
             }
@@ -243,6 +247,7 @@ impl Parser {
             fields.push(Parameter {
                 name: field_name_token.lexeme,
                 type_name: type_token.lexeme,
+                visibility: Visibility::Public,
                 line: field_name_token.line,
                 column: field_name_token.column,
             });
@@ -258,8 +263,15 @@ impl Parser {
         Ok(Statement::StructDeclaration { name, fields, line, column })
     }
 
-    /// Parses `class Name [extends Parent] [implements A, B] { ... }`.
+    /// Parses `[abstract] class Name [extends Parent] [implements A, B] { ... }`.
     fn parse_class_declaration(&mut self) -> Result<Statement, CompilerError> {
+        let is_abstract = if self.check(&TokenKind::Abstract) {
+            self.advance();
+            true
+        } else {
+            false
+        };
+
         let keyword = self.advance(); // consume `class`
         let line = keyword.line;
         let column = keyword.column;
@@ -267,7 +279,6 @@ impl Parser {
         let name_token = self.expect(TokenKind::Identifier, "class name")?;
         let name = name_token.lexeme;
 
-        // Optional `extends Parent`
         let extends = if self.check(&TokenKind::Extends) {
             self.advance();
             let parent = self.expect(TokenKind::Identifier, "parent class name")?;
@@ -276,7 +287,6 @@ impl Parser {
             None
         };
 
-        // Optional `implements A, B, ...`
         let mut implements = Vec::new();
         if self.check(&TokenKind::Implements) {
             self.advance();
@@ -297,24 +307,28 @@ impl Parser {
         let mut methods = Vec::new();
 
         while !self.check(&TokenKind::RightBrace) && !self.is_at_end() {
+            let visibility = self.parse_optional_visibility();
+            let method_is_abstract = if self.check(&TokenKind::Abstract) {
+                self.advance();
+                true
+            } else {
+                false
+            };
+
             if self.check(&TokenKind::Func) {
-                let method = self.parse_function_declaration()?;
+                let method = self.parse_method_declaration(visibility, method_is_abstract)?;
                 methods.push(method);
             } else {
-                let field_name_token = self.expect(TokenKind::Identifier, "field name")?;
-                self.expect(TokenKind::Colon, "':'")?;
-                let type_token = self.expect(TokenKind::Identifier, "field type")?;
-
-                fields.push(Parameter {
-                    name: field_name_token.lexeme,
-                    type_name: type_token.lexeme,
-                    line: field_name_token.line,
-                    column: field_name_token.column,
-                });
-
-                if self.check(&TokenKind::Comma) {
-                    self.advance();
+                if method_is_abstract {
+                    let token = self.peek();
+                    return Err(CompilerError::UnexpectedToken {
+                        expected: "func after abstract".to_string(),
+                        found: describe_token(token),
+                        line: token.line,
+                        column: token.column,
+                    });
                 }
+                fields.push(self.parse_field_declaration(visibility)?);
             }
         }
 
@@ -324,11 +338,171 @@ impl Parser {
             name,
             extends,
             implements,
+            is_abstract,
             fields,
             methods,
             line,
             column,
         })
+    }
+
+    /// Parses `interface Name { func method(...) -> type ... }` or `trait Name { ... }`.
+    fn parse_interface_declaration(&mut self) -> Result<Statement, CompilerError> {
+        let keyword = self.advance(); // `interface` or `trait`
+        let line = keyword.line;
+        let column = keyword.column;
+
+        let name_token = self.expect(TokenKind::Identifier, "interface name")?;
+        let name = name_token.lexeme;
+
+        self.expect(TokenKind::LeftBrace, "'{'")?;
+        let mut methods = Vec::new();
+
+        while !self.check(&TokenKind::RightBrace) && !self.is_at_end() {
+            self.expect(TokenKind::Func, "'func'")?;
+            methods.push(self.parse_method_signature()?);
+        }
+
+        self.expect(TokenKind::RightBrace, "'}'")?;
+
+        Ok(Statement::InterfaceDeclaration { name, methods, line, column })
+    }
+
+    /// Parses an optional `public` / `private` prefix (defaults to public).
+    fn parse_optional_visibility(&mut self) -> Visibility {
+        if self.check(&TokenKind::Public) {
+            self.advance();
+            Visibility::Public
+        } else if self.check(&TokenKind::Private) {
+            self.advance();
+            Visibility::Private
+        } else {
+            Visibility::Public
+        }
+    }
+
+    /// Parses `name: type` with the given visibility.
+    fn parse_field_declaration(&mut self, visibility: Visibility) -> Result<Parameter, CompilerError> {
+        let field_name_token = self.expect(TokenKind::Identifier, "field name")?;
+        self.expect(TokenKind::Colon, "':'")?;
+        let type_token = self.expect(TokenKind::Identifier, "field type")?;
+
+        if self.check(&TokenKind::Comma) {
+            self.advance();
+        }
+
+        Ok(Parameter {
+            name: field_name_token.lexeme,
+            type_name: type_token.lexeme,
+            visibility,
+            line: field_name_token.line,
+            column: field_name_token.column,
+        })
+    }
+
+    /// Parses a method signature (no body) for interfaces.
+    fn parse_method_signature(&mut self) -> Result<MethodSignature, CompilerError> {
+        let name_token = self.expect(TokenKind::Identifier, "method name")?;
+        let line = name_token.line;
+        let column = name_token.column;
+
+        self.expect(TokenKind::LeftParen, "'('")?;
+        let params = self.parse_parameter_list()?;
+        self.expect(TokenKind::RightParen, "')'")?;
+
+        let return_type = if self.check(&TokenKind::Arrow) {
+            self.advance();
+            let type_token = self.expect(TokenKind::Identifier, "return type")?;
+            Some(type_token.lexeme)
+        } else {
+            None
+        };
+
+        Ok(MethodSignature {
+            name: name_token.lexeme,
+            params,
+            return_type,
+            line,
+            column,
+        })
+    }
+
+    /// Parses a class method with optional visibility and abstract modifier.
+    fn parse_method_declaration(
+        &mut self,
+        visibility: Visibility,
+        is_abstract: bool,
+    ) -> Result<Statement, CompilerError> {
+        let func_kw = self.advance(); // `func`
+        let line = func_kw.line;
+        let column = func_kw.column;
+
+        let name_token = self.expect(TokenKind::Identifier, "method name")?;
+        let name = name_token.lexeme;
+
+        self.expect(TokenKind::LeftParen, "'('")?;
+        let params = self.parse_parameter_list()?;
+        self.expect(TokenKind::RightParen, "')'")?;
+
+        let return_type = if self.check(&TokenKind::Arrow) {
+            self.advance();
+            let type_token = self.expect(TokenKind::Identifier, "return type")?;
+            Some(type_token.lexeme)
+        } else {
+            None
+        };
+
+        let body = if is_abstract {
+            if self.check(&TokenKind::LeftBrace) {
+                return Err(CompilerError::UnexpectedToken {
+                    expected: "no body for abstract method".to_string(),
+                    found: "'{'".to_string(),
+                    line: self.peek().line,
+                    column: self.peek().column,
+                });
+            }
+            Vec::new()
+        } else {
+            self.parse_block()?
+        };
+
+        Ok(Statement::FunctionDeclaration {
+            name,
+            params,
+            return_type,
+            body,
+            visibility,
+            is_abstract,
+            line,
+            column,
+        })
+    }
+
+    /// Parses a comma-separated parameter list.
+    fn parse_parameter_list(&mut self) -> Result<Vec<Parameter>, CompilerError> {
+        let mut params = Vec::new();
+        if !self.check(&TokenKind::RightParen) {
+            loop {
+                let param_name_token = self.expect(TokenKind::Identifier, "parameter name")?;
+                self.expect(TokenKind::Colon, "':'")?;
+                let type_token = self.expect(TokenKind::Identifier, "parameter type")?;
+
+                params.push(Parameter {
+                    name: param_name_token.lexeme,
+                    type_name: type_token.lexeme,
+                    visibility: Visibility::Public,
+                    line: param_name_token.line,
+                    column: param_name_token.column,
+                });
+
+                if self.check(&TokenKind::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+        }
+        Ok(params)
     }
 
     /// Parses `try { try_block } catch catch_var { catch_block }`.
@@ -359,6 +533,40 @@ impl Parser {
             value,
             line: throw_kw.line,
             column: throw_kw.column,
+        })
+    }
+
+    /// Parses `import name` or `import name from "path"`.
+    fn parse_import_declaration(&mut self) -> Result<Statement, CompilerError> {
+        let keyword = self.advance();
+        let line = keyword.line;
+        let column = keyword.column;
+
+        let name_token = self.expect(TokenKind::Identifier, "module name")?;
+        let name = name_token.lexeme;
+
+        let path = if self.check(&TokenKind::From) {
+            self.advance();
+            let path_token = self.expect(TokenKind::StringLiteral, "module path string")?;
+            Some(path_token.lexeme)
+        } else {
+            None
+        };
+
+        Ok(Statement::ImportDeclaration { name, path, line, column })
+    }
+
+    /// Parses `export name`.
+    fn parse_export_declaration(&mut self) -> Result<Statement, CompilerError> {
+        let keyword = self.advance();
+        let line = keyword.line;
+        let column = keyword.column;
+
+        let name_token = self.expect(TokenKind::Identifier, "export name")?;
+        Ok(Statement::ExportDeclaration {
+            name: name_token.lexeme,
+            line,
+            column,
         })
     }
 
@@ -455,6 +663,17 @@ impl Parser {
     /// (zero parameters, no `->` clause), matching the Bunzo example
     /// programs where a function may declare no return value.
     fn parse_function_declaration(&mut self) -> Result<Statement, CompilerError> {
+        let visibility = self.parse_optional_visibility();
+        if self.check(&TokenKind::Abstract) {
+            let token = self.peek();
+            return Err(CompilerError::UnexpectedToken {
+                expected: "concrete function".to_string(),
+                found: "abstract".to_string(),
+                line: token.line,
+                column: token.column,
+            });
+        }
+
         let keyword = self.advance();
         let line = keyword.line;
         let column = keyword.column;
@@ -463,27 +682,7 @@ impl Parser {
         let name = name_token.lexeme;
 
         self.expect(TokenKind::LeftParen, "'('")?;
-        let mut params = Vec::new();
-        if !self.check(&TokenKind::RightParen) {
-            loop {
-                let param_name_token = self.expect(TokenKind::Identifier, "parameter name")?;
-                self.expect(TokenKind::Colon, "':'")?;
-                let type_token = self.expect(TokenKind::Identifier, "parameter type")?;
-
-                params.push(Parameter {
-                    name: param_name_token.lexeme,
-                    type_name: type_token.lexeme,
-                    line: param_name_token.line,
-                    column: param_name_token.column,
-                });
-
-                if self.check(&TokenKind::Comma) {
-                    self.advance();
-                } else {
-                    break;
-                }
-            }
-        }
+        let params = self.parse_parameter_list()?;
         self.expect(TokenKind::RightParen, "')'")?;
 
         let return_type = if self.check(&TokenKind::Arrow) {
@@ -501,6 +700,8 @@ impl Parser {
             params,
             return_type,
             body,
+            visibility,
+            is_abstract: false,
             line,
             column,
         })
@@ -552,9 +753,10 @@ impl Parser {
                 | TokenKind::False
                 | TokenKind::Null
                 | TokenKind::Identifier
-                | TokenKind::LeftParen
+                |             TokenKind::LeftParen
                 | TokenKind::Bang
                 | TokenKind::Minus
+                | TokenKind::Super
         )
     }
 
@@ -886,6 +1088,14 @@ impl Parser {
             TokenKind::Null => {
                 self.advance();
                 Ok(Expression::NullLiteral {
+                    line: token.line,
+                    column: token.column,
+                })
+            }
+
+            TokenKind::Super => {
+                self.advance();
+                Ok(Expression::SuperExpr {
                     line: token.line,
                     column: token.column,
                 })
