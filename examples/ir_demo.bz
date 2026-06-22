@@ -1,0 +1,37 @@
+// ir_demo.bz
+// A comprehensive example to showcase Bunzo IR generation.
+// Run this with `bzc --emit-ir examples/ir_demo.bz` to see the lowered IR.
+
+func calculate(a: int, b: int) -> int {
+    let sum = a + b
+    let diff = a - b
+    let result = sum * diff
+    return result
+}
+
+func test_loops() {
+    let i = 0
+    while i < 5 {
+        if i == 3 {
+            print("Three!")
+        } else {
+            print(i)
+        }
+        i = i + 1
+    }
+}
+
+// The main entry point
+let x = 10
+let y = 5
+
+if x > y {
+    print("x is greater than y")
+} else {
+    print("y is greater than or equal to x")
+}
+
+let calc_result = calculate(x, y)
+print(calc_result)
+
+test_loops()
