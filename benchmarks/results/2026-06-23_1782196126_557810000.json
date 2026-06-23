@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-06-23T11:45:00Z",
+  "program": "recursion.bz",
+  "compiler_timings": {
+    "lexing_ms": 0.088,
+    "parsing_ms": 0.083,
+    "semantic_ms": 0.210,
+    "type_checking_ms": 0.099,
+    "ir_generation_ms": 0.041,
+    "optimization_ms": 0.076,
+    "code_generation_ms": 0.193,
+    "total_ms": 1.052
+  },
+  "execution_timings": null,
+  "c_size_bytes": 1034,
+  "exe_size_bytes": 0,
+  "optimization_enabled": true
+}
