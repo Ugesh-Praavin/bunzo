@@ -6,3 +6,7 @@ authors = ["Ugesh Praavin D"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Ugesh-Praavin/bunzo"
 homepage = "https://bunzo.dev"
+
+[[bin]]
+name = "bunzo"
+path = "src/main.rs"

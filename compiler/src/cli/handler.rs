@@ -75,7 +75,9 @@ pub fn run(args: &[String]) -> Result<(), String> {
         let mut i = 3;
         while i < args.len() {
             if args[i] == "--repeat" && i + 1 < args.len() {
-                repeat = args[i + 1].parse::<usize>().map_err(|_| "Error: Invalid repeat count".to_string())?;
+                repeat = args[i + 1]
+                    .parse::<usize>()
+                    .map_err(|_| "Error: Invalid repeat count".to_string())?;
                 i += 2;
             } else if args[i] == "--emit-c" {
                 emit_c = true;
@@ -216,11 +218,22 @@ pub fn run(args: &[String]) -> Result<(), String> {
             let mut compiled = false;
             for (cc, args) in &compilers {
                 match std::process::Command::new(cc).args(args).output() {
-                    Ok(output) if output.status.success() => {
-                        compiled = true;
-                        break;
+                    Ok(output) => {
+                        eprintln!("Trying {}", cc);
+
+                        eprintln!("stdout:\n{}", String::from_utf8_lossy(&output.stdout));
+
+                        eprintln!("stderr:\n{}", String::from_utf8_lossy(&output.stderr));
+
+                        if output.status.success() {
+                            compiled = true;
+                            break;
+                        }
                     }
-                    _ => {}
+
+                    Err(err) => {
+                        eprintln!("Failed to launch {}: {}", cc, err);
+                    }
                 }
             }
 
