@@ -16,7 +16,8 @@ Usage:
     bzc run <file.bz>
     bzc emit-c <file.bz> [-o <output>]
     bzc build <file.bz> [-o <output>]
-    bzc benchmark <file.bz> [--repeat <N>] [--emit-c] [--no-run]";
+    bzc benchmark <file.bz> [--repeat <N>] [--emit-c] [--no-run]
+    bzc fmt <file_or_dir> [--check]";
 
 /// Find the runtime directory containing runtime.c/runtime.h
 fn find_runtime_dir() -> Option<std::path::PathBuf> {
@@ -62,7 +63,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
     let command = args[1].as_str();
     let file_path = &args[2];
 
-    if command != "run" && command != "emit-c" && command != "build" && command != "benchmark" {
+    if command != "run" && command != "emit-c" && command != "build" && command != "benchmark" && command != "fmt" {
         return Err(USAGE.to_string());
     }
 
@@ -87,6 +88,8 @@ pub fn run(args: &[String]) -> Result<(), String> {
                 return Err(USAGE.to_string());
             }
         }
+    } else if command == "fmt" {
+        // fmt subcommand has its own option parsing
     } else {
         let mut i = 3;
         while i < args.len() {
@@ -101,6 +104,31 @@ pub fn run(args: &[String]) -> Result<(), String> {
 
     if command == "run" && output_path.is_some() {
         return Err("Error: -o option is not supported for 'run' command".to_string());
+    }
+
+    if command == "fmt" {
+        let mut check = false;
+        let mut i = 3;
+        while i < args.len() {
+            if args[i] == "--check" {
+                check = true;
+                i += 1;
+            } else {
+                return Err(USAGE.to_string());
+            }
+        }
+        match run_fmt(file_path, check) {
+            Ok(needs_formatting) => {
+                if needs_formatting && check {
+                    return Err("Formatting required".to_string());
+                } else {
+                    return Ok(());
+                }
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
     }
 
     if command == "benchmark" {
@@ -239,5 +267,78 @@ pub fn run(args: &[String]) -> Result<(), String> {
         }
     }
 
+    Ok(())
+}
+
+fn run_fmt(path_str: &str, check: bool) -> Result<bool, String> {
+    let path = Path::new(path_str);
+    let mut files = Vec::new();
+    collect_bz_files(path, &mut files).map_err(|e| format!("Error collecting files: {}", e))?;
+
+    if files.is_empty() {
+        return Err(format!("No .bz files found at path: {}", path_str));
+    }
+
+    let mut any_needs_formatting = false;
+    let mut any_failed = false;
+
+    for file in &files {
+        let content = match std::fs::read_to_string(file) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Error reading {}: {}", file.display(), e);
+                any_failed = true;
+                continue;
+            }
+        };
+
+        let formatted = match crate::formatter::format(&content) {
+            Ok(f) => f,
+            Err(e) => {
+                eprintln!("Error parsing/formatting {}: {}", file.display(), e);
+                any_failed = true;
+                continue;
+            }
+        };
+
+        if formatted != content {
+            any_needs_formatting = true;
+            if check {
+                println!("File needs formatting: {}", file.display());
+            } else {
+                if let Err(e) = std::fs::write(file, &formatted) {
+                    eprintln!("Error writing {}: {}", file.display(), e);
+                    any_failed = true;
+                } else {
+                    println!("Formatted: {}", file.display());
+                }
+            }
+        }
+    }
+
+    if any_failed {
+        return Err("Some files failed to compile/format".to_string());
+    }
+
+    Ok(any_needs_formatting)
+}
+
+fn collect_bz_files(path: &Path, files: &mut Vec<std::path::PathBuf>) -> std::io::Result<()> {
+    if path.is_file() {
+        if path.extension().map_or(false, |ext| ext == "bz") {
+            files.push(path.to_path_buf());
+        }
+    } else if path.is_dir() {
+        for entry in std::fs::read_dir(path)? {
+            let entry = entry?;
+            let entry_path = entry.path();
+            if let Some(name) = entry_path.file_name().and_then(|n| n.to_str()) {
+                if name.starts_with('.') || name == "target" {
+                    continue;
+                }
+            }
+            collect_bz_files(&entry_path, files)?;
+        }
+    }
     Ok(())
 }
