@@ -43,6 +43,7 @@ pub mod function;
 pub mod instructions;
 pub mod lowering;
 pub mod module;
+pub mod optimize;
 pub mod pretty_print;
 pub mod types;
 
@@ -52,5 +53,6 @@ pub use function::{BasicBlock, IrFunction, IrParameter};
 pub use instructions::{BinOpKind, Constant, Instruction, Operand, UnaryOpKind, VirtualRegister};
 pub use lowering::lower;
 pub use module::IrModule;
+pub use optimize::optimize;
 pub use pretty_print::print_module;
 pub use types::IrType;
