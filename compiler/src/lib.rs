@@ -8,6 +8,7 @@ pub mod benchmark;
 pub mod cli;
 pub mod codegen;
 pub mod diagnostics;
+pub mod formatter;
 pub mod ir;
 pub mod lexer;
 pub mod parser;
