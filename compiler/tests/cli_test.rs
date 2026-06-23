@@ -24,7 +24,7 @@ fn too_many_arguments_shows_usage() {
 
 #[test]
 fn unknown_command_shows_usage() {
-    let args = make_args(&["bzc", "build", "hello.bz"]);
+    let args = make_args(&["bzc", "foobar", "hello.bz"]);
     let result = cli::run(&args);
 
     assert!(result.is_err());

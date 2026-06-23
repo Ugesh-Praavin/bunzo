@@ -146,8 +146,7 @@ impl LoweringContext {
             .map(type_name_to_ir_type)
             .unwrap_or(IrType::Void);
 
-        self.builder
-            .begin_function(name, ir_params, ir_return_type);
+        self.builder.begin_function(name, ir_params, ir_return_type);
         self.builder.begin_block("entry");
 
         for stmt in body {
@@ -189,17 +188,15 @@ impl LoweringContext {
                 self.builder.emit_print(operand);
             }
 
-            Statement::ReturnStatement { value, .. } => {
-                match value {
-                    Some(expr) => {
-                        let operand = self.lower_expression(expr)?;
-                        self.builder.emit_return(operand);
-                    }
-                    None => {
-                        self.builder.emit_return_void();
-                    }
+            Statement::ReturnStatement { value, .. } => match value {
+                Some(expr) => {
+                    let operand = self.lower_expression(expr)?;
+                    self.builder.emit_return(operand);
                 }
-            }
+                None => {
+                    self.builder.emit_return_void();
+                }
+            },
 
             Statement::ExpressionStatement { expression } => {
                 // Lower for side effects (e.g. a bare function call).
@@ -290,11 +287,8 @@ impl LoweringContext {
 
         // Emit the conditional branch in the current block.
         let cond_op = self.lower_expression(condition)?;
-        self.builder.emit_branch(
-            cond_op,
-            then_label.clone(),
-            else_label.clone(),
-        );
+        self.builder
+            .emit_branch(cond_op, then_label.clone(), else_label.clone());
 
         // ── then block ────────────────────────────────────────
         self.builder.begin_block(then_label);
@@ -401,13 +395,14 @@ impl LoweringContext {
         self.builder.begin_block(header_label.clone());
         let loop_var = self.builder.emit_load(variable);
         let end_op = self.lower_expression(end)?;
-        let cmp = self.builder.emit_binop(
-            BinOpKind::Less,
-            Operand::Register(loop_var),
-            end_op,
+        let cmp = self
+            .builder
+            .emit_binop(BinOpKind::Less, Operand::Register(loop_var), end_op);
+        self.builder.emit_branch(
+            Operand::Register(cmp),
+            body_label.clone(),
+            exit_label.clone(),
         );
-        self.builder
-            .emit_branch(Operand::Register(cmp), body_label.clone(), exit_label.clone());
 
         // ── body block ────────────────────────────────────────
         self.builder.begin_block(body_label);
@@ -424,9 +419,7 @@ impl LoweringContext {
         if !self.current_block_is_terminated() {
             // Increment the loop variable.
             let current = self.builder.emit_load(variable);
-            let one = self
-                .builder
-                .emit_const(IrType::Int, Constant::Int(1));
+            let one = self.builder.emit_const(IrType::Int, Constant::Int(1));
             let next = self.builder.emit_binop(
                 BinOpKind::Add,
                 Operand::Register(current),

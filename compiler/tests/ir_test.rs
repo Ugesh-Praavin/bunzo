@@ -15,8 +15,8 @@
 //! function declarations use `func`, variables use `let` / `const`, etc.
 
 use bzc::ir::{
-    self, BasicBlock, BinOpKind, Constant, IrBuilder, IrModule, IrParameter, IrType,
-    Instruction, Operand, VirtualRegister,
+    self, BasicBlock, BinOpKind, Constant, Instruction, IrBuilder, IrModule, IrParameter, IrType,
+    Operand, VirtualRegister,
 };
 use bzc::lexer;
 use bzc::parser;
@@ -363,7 +363,10 @@ fn test_lower_binary_expression() {
 
     assert!(entry.instructions.iter().any(|i| matches!(
         i,
-        Instruction::BinOp { op: BinOpKind::Add, .. }
+        Instruction::BinOp {
+            op: BinOpKind::Add,
+            ..
+        }
     )));
 }
 
@@ -374,7 +377,10 @@ fn test_lower_binary_subtraction() {
     let entry = &main_fn.blocks[0];
     assert!(entry.instructions.iter().any(|i| matches!(
         i,
-        Instruction::BinOp { op: BinOpKind::Subtract, .. }
+        Instruction::BinOp {
+            op: BinOpKind::Subtract,
+            ..
+        }
     )));
 }
 
@@ -385,11 +391,17 @@ fn test_lower_binary_multiply_divide() {
     let entry = &main_fn.blocks[0];
     assert!(entry.instructions.iter().any(|i| matches!(
         i,
-        Instruction::BinOp { op: BinOpKind::Multiply, .. }
+        Instruction::BinOp {
+            op: BinOpKind::Multiply,
+            ..
+        }
     )));
     assert!(entry.instructions.iter().any(|i| matches!(
         i,
-        Instruction::BinOp { op: BinOpKind::Divide, .. }
+        Instruction::BinOp {
+            op: BinOpKind::Divide,
+            ..
+        }
     )));
 }
 
@@ -400,11 +412,17 @@ fn test_lower_comparison_operators() {
     let entry = &main_fn.blocks[0];
     assert!(entry.instructions.iter().any(|i| matches!(
         i,
-        Instruction::BinOp { op: BinOpKind::Greater, .. }
+        Instruction::BinOp {
+            op: BinOpKind::Greater,
+            ..
+        }
     )));
     assert!(entry.instructions.iter().any(|i| matches!(
         i,
-        Instruction::BinOp { op: BinOpKind::Equal, .. }
+        Instruction::BinOp {
+            op: BinOpKind::Equal,
+            ..
+        }
     )));
 }
 
@@ -458,10 +476,12 @@ func getValue() -> int {
     let module = lower_source(source);
     let func = module.get_function("getValue").unwrap();
     let entry = &func.blocks[0];
-    assert!(entry.instructions.iter().any(|i| matches!(
-        i,
-        Instruction::Return { value: Some(_) }
-    )));
+    assert!(
+        entry
+            .instructions
+            .iter()
+            .any(|i| matches!(i, Instruction::Return { value: Some(_) }))
+    );
 }
 
 #[test]
@@ -478,7 +498,10 @@ if x > 3 {
     let main_fn = module.get_function("__main__").unwrap();
 
     // Should have: entry, then.N, else.N, merge.N = 4 blocks minimum
-    assert!(main_fn.blocks.len() >= 4, "Expected at least 4 blocks for if/else");
+    assert!(
+        main_fn.blocks.len() >= 4,
+        "Expected at least 4 blocks for if/else"
+    );
 }
 
 #[test]
@@ -493,10 +516,12 @@ if flag {
     let main_fn = module.get_function("__main__").unwrap();
 
     let entry = &main_fn.blocks[0];
-    assert!(entry.instructions.iter().any(|i| matches!(
-        i,
-        Instruction::Branch { .. }
-    )));
+    assert!(
+        entry
+            .instructions
+            .iter()
+            .any(|i| matches!(i, Instruction::Branch { .. }))
+    );
 }
 
 #[test]
@@ -534,10 +559,12 @@ while i < 3 {
         .find(|b| b.label.starts_with("loop.header"))
         .expect("loop.header block missing");
 
-    assert!(header.instructions.iter().any(|i| matches!(
-        i,
-        Instruction::Branch { .. }
-    )));
+    assert!(
+        header
+            .instructions
+            .iter()
+            .any(|i| matches!(i, Instruction::Branch { .. }))
+    );
 }
 
 #[test]
@@ -579,11 +606,12 @@ fn test_lower_main_ends_with_return() {
     let main_fn = module.get_function("__main__").unwrap();
 
     // Some block in __main__ must end with Return.
-    assert!(main_fn.blocks.iter().any(|b| b
-        .instructions
-        .last()
-        .map(|i| matches!(i, Instruction::Return { .. }))
-        .unwrap_or(false)));
+    assert!(main_fn.blocks.iter().any(|b| {
+        b.instructions
+            .last()
+            .map(|i| matches!(i, Instruction::Return { .. }))
+            .unwrap_or(false)
+    }));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -666,7 +694,10 @@ func getName() -> string {
 #[test]
 fn test_pretty_print_contains_function_header() {
     let text = ir_text("let x = 1");
-    assert!(text.contains("function __main__()"), "Expected function header in:\n{text}");
+    assert!(
+        text.contains("function __main__()"),
+        "Expected function header in:\n{text}"
+    );
 }
 
 #[test]
@@ -678,7 +709,10 @@ fn test_pretty_print_contains_entry_label() {
 #[test]
 fn test_pretty_print_contains_store() {
     let text = ir_text("let score = 99");
-    assert!(text.contains("store score"), "Expected 'store score' in:\n{text}");
+    assert!(
+        text.contains("store score"),
+        "Expected 'store score' in:\n{text}"
+    );
 }
 
 #[test]
@@ -707,7 +741,10 @@ func greet() {
 }
 "#;
     let text = ir_text(source);
-    assert!(text.contains("function greet()"), "Expected 'function greet()' in:\n{text}");
+    assert!(
+        text.contains("function greet()"),
+        "Expected 'function greet()' in:\n{text}"
+    );
 }
 
 #[test]
@@ -719,8 +756,14 @@ while i < 3 {
 }
 "#;
     let text = ir_text(source);
-    assert!(text.contains("loop.header"), "Expected 'loop.header' in:\n{text}");
-    assert!(text.contains("loop.exit"), "Expected 'loop.exit' in:\n{text}");
+    assert!(
+        text.contains("loop.header"),
+        "Expected 'loop.header' in:\n{text}"
+    );
+    assert!(
+        text.contains("loop.exit"),
+        "Expected 'loop.exit' in:\n{text}"
+    );
 }
 
 #[test]
@@ -751,7 +794,10 @@ for i in 1..5 {
 fn test_pretty_print_module_header() {
     let module = lower_source("let x = 1");
     let text = ir::print_module(&module);
-    assert!(text.starts_with("; IR Module:"), "Expected module comment header in:\n{text}");
+    assert!(
+        text.starts_with("; IR Module:"),
+        "Expected module comment header in:\n{text}"
+    );
 }
 
 #[test]
@@ -773,7 +819,10 @@ func add(a: int, b: int) -> int {
 fn test_pretty_print_virtual_register_format() {
     // Binary ops produce registers like %0, %1, etc.
     let text = ir_text("let z = 2 + 3");
-    assert!(text.contains('%'), "Expected '%N' register references in:\n{text}");
+    assert!(
+        text.contains('%'),
+        "Expected '%N' register references in:\n{text}"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

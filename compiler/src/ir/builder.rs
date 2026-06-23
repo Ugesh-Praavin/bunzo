@@ -16,7 +16,9 @@
 //! has to reason about register numbering or block labelling.
 
 use super::function::{BasicBlock, IrFunction, IrParameter};
-use super::instructions::{BinOpKind, Constant, Instruction, Operand, UnaryOpKind, VirtualRegister};
+use super::instructions::{
+    BinOpKind, Constant, Instruction, Operand, UnaryOpKind, VirtualRegister,
+};
 use super::module::IrModule;
 use super::types::IrType;
 
@@ -147,11 +149,7 @@ impl IrBuilder {
     /// `%N = const.<ty> <value>`
     pub fn emit_const(&mut self, ty: IrType, value: Constant) -> VirtualRegister {
         let dest = self.alloc_register();
-        self.emit(Instruction::Const {
-            dest,
-            ty,
-            value,
-        });
+        self.emit(Instruction::Const { dest, ty, value });
         dest
     }
 
@@ -170,12 +168,7 @@ impl IrBuilder {
     /// Emits a binary operation instruction and returns the result register.
     ///
     /// `%N = <op> <left> <right>`
-    pub fn emit_binop(
-        &mut self,
-        op: BinOpKind,
-        left: Operand,
-        right: Operand,
-    ) -> VirtualRegister {
+    pub fn emit_binop(&mut self, op: BinOpKind, left: Operand, right: Operand) -> VirtualRegister {
         let dest = self.alloc_register();
         self.emit(Instruction::BinOp {
             dest,
@@ -290,9 +283,7 @@ impl IrBuilder {
     ///
     /// `return <value>`
     pub fn emit_return(&mut self, value: Operand) {
-        self.emit(Instruction::Return {
-            value: Some(value),
-        });
+        self.emit(Instruction::Return { value: Some(value) });
     }
 
     // ── Module finalisation ───────────────────────────────────────────────

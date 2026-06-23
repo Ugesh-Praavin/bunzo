@@ -57,7 +57,8 @@ Bunzo is being built with the following planned capabilities:
 | Interpreter              | ✅ Complete   |
 | Semantic Analysis        | ✅ Complete   |
 | Type Checker             | 📋 Planned   |
-| IR Generation            | 📋 Planned   |
+| IR Generation            | ✅ Complete   |
+| IR Optimization          | ✅ Complete   |
 | Standard Library         | 📋 Planned   |
 | Package Manager          | 📋 Planned   |
 | Formatter                | 📋 Planned   |
@@ -195,6 +196,8 @@ cargo clippy -- -D warnings
 ### Phase 2 — Language Features
 - [x] Semantic analysis
 - [ ] Type checker
+- [x] IR Generation
+- [x] IR Optimization
 - [ ] Standard library
 - [ ] Module system
 

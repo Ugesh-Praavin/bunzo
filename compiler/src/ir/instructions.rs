@@ -168,7 +168,6 @@ impl fmt::Display for UnaryOpKind {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Instruction {
     // ── Value-producing instructions ────────────────────────────────
-
     /// Load a constant value into a virtual register.
     ///
     /// `%dest = const.<type> <value>`
@@ -224,7 +223,6 @@ pub enum Instruction {
     },
 
     // ── Side-effect instructions ────────────────────────────────────
-
     /// Store a value into a named variable in the current scope.
     ///
     /// `store <name> <value>`
@@ -236,9 +234,7 @@ pub enum Instruction {
     /// Print a value to standard output.
     ///
     /// `print <value>`
-    Print {
-        value: Operand,
-    },
+    Print { value: Operand },
 
     /// Set a field on a struct or object.
     ///
@@ -252,20 +248,14 @@ pub enum Instruction {
     /// Call a function for its side effects (no return value captured).
     ///
     /// `call_void <callee>(<args…>)`
-    CallVoid {
-        callee: Operand,
-        args: Vec<Operand>,
-    },
+    CallVoid { callee: Operand, args: Vec<Operand> },
 
     // ── Terminator instructions ─────────────────────────────────────
     // Every basic block must end with exactly one terminator.
-
     /// Unconditionally jump to a basic block.
     ///
     /// `jump <target_label>`
-    Jump {
-        target: std::string::String,
-    },
+    Jump { target: std::string::String },
 
     /// Conditionally branch to one of two basic blocks.
     ///
@@ -279,9 +269,7 @@ pub enum Instruction {
     /// Return from the current function, optionally with a value.
     ///
     /// `return` or `return <value>`
-    Return {
-        value: Option<Operand>,
-    },
+    Return { value: Option<Operand> },
 }
 
 impl Instruction {
@@ -291,9 +279,7 @@ impl Instruction {
     pub fn is_terminator(&self) -> bool {
         matches!(
             self,
-            Instruction::Jump { .. }
-                | Instruction::Branch { .. }
-                | Instruction::Return { .. }
+            Instruction::Jump { .. } | Instruction::Branch { .. } | Instruction::Return { .. }
         )
     }
 
