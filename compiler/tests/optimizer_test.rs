@@ -1,8 +1,6 @@
 //! Integration tests for the Bunzo IR optimizer (Milestone 13).
 
-use bzc::ir::{
-    self, Constant, IrModule, Instruction, Operand,
-};
+use bzc::ir::{self, Constant, Instruction, IrModule, Operand};
 use bzc::lexer;
 use bzc::parser;
 use bzc::semantic;
@@ -42,7 +40,12 @@ fn test_constant_folding_int_arithmetic() {
     )));
 
     // Verify there are no BinOp instructions left in the block.
-    assert!(!entry.instructions.iter().any(|i| matches!(i, Instruction::BinOp { .. })));
+    assert!(
+        !entry
+            .instructions
+            .iter()
+            .any(|i| matches!(i, Instruction::BinOp { .. }))
+    );
 }
 
 #[test]
@@ -56,7 +59,12 @@ fn test_constant_folding_float_arithmetic() {
         i,
         Instruction::Store { name, value: Operand::Constant(Constant::Float(val)) } if name == "x" && (val - 4.0).abs() < 1e-9
     )));
-    assert!(!entry.instructions.iter().any(|i| matches!(i, Instruction::BinOp { .. })));
+    assert!(
+        !entry
+            .instructions
+            .iter()
+            .any(|i| matches!(i, Instruction::BinOp { .. }))
+    );
 }
 
 #[test]
@@ -70,7 +78,12 @@ fn test_constant_folding_boolean_logic() {
         i,
         Instruction::Store { name, value: Operand::Constant(Constant::Bool(false)) } if name == "x"
     )));
-    assert!(!entry.instructions.iter().any(|i| matches!(i, Instruction::BinOp { .. })));
+    assert!(
+        !entry
+            .instructions
+            .iter()
+            .any(|i| matches!(i, Instruction::BinOp { .. }))
+    );
 }
 
 #[test]
@@ -84,7 +97,12 @@ fn test_constant_folding_string_concatenation() {
         i,
         Instruction::Store { name, value: Operand::Constant(Constant::String(s)) } if name == "greeting" && s == "hello world"
     )));
-    assert!(!entry.instructions.iter().any(|i| matches!(i, Instruction::BinOp { .. })));
+    assert!(
+        !entry
+            .instructions
+            .iter()
+            .any(|i| matches!(i, Instruction::BinOp { .. }))
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -111,18 +129,20 @@ fn test_cfg_branch_folding_and_unreachable_block_elimination() {
     }
 
     // Verify that print("then") is present but print("else") is absent.
-    let prints_then = main_fn.blocks.iter().any(|b| {
-        b.instructions.iter().any(|i| matches!(
+    let prints_then =
+        main_fn.blocks.iter().any(|b| {
+            b.instructions.iter().any(|i| matches!(
             i,
             Instruction::Print { value: Operand::Constant(Constant::String(s)) } if s == "then"
         ))
-    });
-    let prints_else = main_fn.blocks.iter().any(|b| {
-        b.instructions.iter().any(|i| matches!(
+        });
+    let prints_else =
+        main_fn.blocks.iter().any(|b| {
+            b.instructions.iter().any(|i| matches!(
             i,
             Instruction::Print { value: Operand::Constant(Constant::String(s)) } if s == "else"
         ))
-    });
+        });
 
     assert!(prints_then);
     assert!(!prints_else);
@@ -161,8 +181,14 @@ fn test_dce_unused_call_to_void() {
     let entry = &main_fn.blocks[0];
 
     // Check that we have a CallVoid instead of Call.
-    let has_call = entry.instructions.iter().any(|i| matches!(i, Instruction::Call { .. }));
-    let has_call_void = entry.instructions.iter().any(|i| matches!(i, Instruction::CallVoid { .. }));
+    let has_call = entry
+        .instructions
+        .iter()
+        .any(|i| matches!(i, Instruction::Call { .. }));
+    let has_call_void = entry
+        .instructions
+        .iter()
+        .any(|i| matches!(i, Instruction::CallVoid { .. }));
 
     assert!(!has_call);
     assert!(has_call_void);

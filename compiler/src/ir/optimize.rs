@@ -6,9 +6,11 @@
 
 use std::collections::{HashMap, HashSet};
 
+use super::function::{BasicBlock, IrFunction};
+use super::instructions::{
+    BinOpKind, Constant, Instruction, Operand, UnaryOpKind, VirtualRegister,
+};
 use super::module::IrModule;
-use super::function::{IrFunction, BasicBlock};
-use super::instructions::{Instruction, Operand, Constant, VirtualRegister, BinOpKind, UnaryOpKind};
 use super::types::IrType;
 
 /// Apply optimization passes on the given IR module.
@@ -99,18 +101,29 @@ fn fold_constants(func: &mut IrFunction) -> bool {
 
             // Now perform folding
             let folded = match inst {
-                Instruction::BinOp { dest, op, left: Operand::Constant(l), right: Operand::Constant(r), .. } => {
-                    eval_binop(*op, l, r).map(|(ty, val)| (*dest, ty, val))
-                }
-                Instruction::UnaryOp { dest, op, operand: Operand::Constant(o), .. } => {
-                    eval_unary_op(*op, o).map(|(ty, val)| (*dest, ty, val))
-                }
+                Instruction::BinOp {
+                    dest,
+                    op,
+                    left: Operand::Constant(l),
+                    right: Operand::Constant(r),
+                    ..
+                } => eval_binop(*op, l, r).map(|(ty, val)| (*dest, ty, val)),
+                Instruction::UnaryOp {
+                    dest,
+                    op,
+                    operand: Operand::Constant(o),
+                    ..
+                } => eval_unary_op(*op, o).map(|(ty, val)| (*dest, ty, val)),
                 _ => None,
             };
 
             if let Some((dest, ty, val)) = folded {
                 consts.insert(dest, val.clone());
-                *inst = Instruction::Const { dest, ty, value: val };
+                *inst = Instruction::Const {
+                    dest,
+                    ty,
+                    value: val,
+                };
                 changed = true;
             }
         }
@@ -133,67 +146,69 @@ fn propagate_operand(operand: &mut Operand, consts: &HashMap<VirtualRegister, Co
 /// Evaluates a binary operation on two constant values.
 fn eval_binop(op: BinOpKind, left: &Constant, right: &Constant) -> Option<(IrType, Constant)> {
     match (left, right) {
-        (Constant::Int(a), Constant::Int(b)) => {
-            match op {
-                BinOpKind::Add => Some((IrType::Int, Constant::Int(a.wrapping_add(*b)))),
-                BinOpKind::Subtract => Some((IrType::Int, Constant::Int(a.wrapping_sub(*b)))),
-                BinOpKind::Multiply => Some((IrType::Int, Constant::Int(a.wrapping_mul(*b)))),
-                BinOpKind::Divide => {
-                    if *b == 0 { None } else { Some((IrType::Int, Constant::Int(a / b))) }
+        (Constant::Int(a), Constant::Int(b)) => match op {
+            BinOpKind::Add => Some((IrType::Int, Constant::Int(a.wrapping_add(*b)))),
+            BinOpKind::Subtract => Some((IrType::Int, Constant::Int(a.wrapping_sub(*b)))),
+            BinOpKind::Multiply => Some((IrType::Int, Constant::Int(a.wrapping_mul(*b)))),
+            BinOpKind::Divide => {
+                if *b == 0 {
+                    None
+                } else {
+                    Some((IrType::Int, Constant::Int(a / b)))
                 }
-                BinOpKind::Modulo => {
-                    if *b == 0 { None } else { Some((IrType::Int, Constant::Int(a % b))) }
+            }
+            BinOpKind::Modulo => {
+                if *b == 0 {
+                    None
+                } else {
+                    Some((IrType::Int, Constant::Int(a % b)))
                 }
-                BinOpKind::Equal => Some((IrType::Bool, Constant::Bool(a == b))),
-                BinOpKind::NotEqual => Some((IrType::Bool, Constant::Bool(a != b))),
-                BinOpKind::Less => Some((IrType::Bool, Constant::Bool(a < b))),
-                BinOpKind::LessEqual => Some((IrType::Bool, Constant::Bool(a <= b))),
-                BinOpKind::Greater => Some((IrType::Bool, Constant::Bool(a > b))),
-                BinOpKind::GreaterEqual => Some((IrType::Bool, Constant::Bool(a >= b))),
-                _ => None,
             }
-        }
-        (Constant::Float(a), Constant::Float(b)) => {
-            match op {
-                BinOpKind::Add => Some((IrType::Float, Constant::Float(a + b))),
-                BinOpKind::Subtract => Some((IrType::Float, Constant::Float(a - b))),
-                BinOpKind::Multiply => Some((IrType::Float, Constant::Float(a * b))),
-                BinOpKind::Divide => {
-                    if *b == 0.0 { None } else { Some((IrType::Float, Constant::Float(a / b))) }
+            BinOpKind::Equal => Some((IrType::Bool, Constant::Bool(a == b))),
+            BinOpKind::NotEqual => Some((IrType::Bool, Constant::Bool(a != b))),
+            BinOpKind::Less => Some((IrType::Bool, Constant::Bool(a < b))),
+            BinOpKind::LessEqual => Some((IrType::Bool, Constant::Bool(a <= b))),
+            BinOpKind::Greater => Some((IrType::Bool, Constant::Bool(a > b))),
+            BinOpKind::GreaterEqual => Some((IrType::Bool, Constant::Bool(a >= b))),
+            _ => None,
+        },
+        (Constant::Float(a), Constant::Float(b)) => match op {
+            BinOpKind::Add => Some((IrType::Float, Constant::Float(a + b))),
+            BinOpKind::Subtract => Some((IrType::Float, Constant::Float(a - b))),
+            BinOpKind::Multiply => Some((IrType::Float, Constant::Float(a * b))),
+            BinOpKind::Divide => {
+                if *b == 0.0 {
+                    None
+                } else {
+                    Some((IrType::Float, Constant::Float(a / b)))
                 }
-                BinOpKind::Equal => Some((IrType::Bool, Constant::Bool(a == b))),
-                BinOpKind::NotEqual => Some((IrType::Bool, Constant::Bool(a != b))),
-                BinOpKind::Less => Some((IrType::Bool, Constant::Bool(a < b))),
-                BinOpKind::LessEqual => Some((IrType::Bool, Constant::Bool(a <= b))),
-                BinOpKind::Greater => Some((IrType::Bool, Constant::Bool(a > b))),
-                BinOpKind::GreaterEqual => Some((IrType::Bool, Constant::Bool(a >= b))),
-                _ => None,
             }
-        }
-        (Constant::Bool(a), Constant::Bool(b)) => {
-            match op {
-                BinOpKind::And => Some((IrType::Bool, Constant::Bool(*a && *b))),
-                BinOpKind::Or => Some((IrType::Bool, Constant::Bool(*a || *b))),
-                BinOpKind::Equal => Some((IrType::Bool, Constant::Bool(a == b))),
-                BinOpKind::NotEqual => Some((IrType::Bool, Constant::Bool(a != b))),
-                _ => None,
-            }
-        }
-        (Constant::String(a), Constant::String(b)) => {
-            match op {
-                BinOpKind::Add => Some((IrType::String, Constant::String(format!("{}{}", a, b)))),
-                BinOpKind::Equal => Some((IrType::Bool, Constant::Bool(a == b))),
-                BinOpKind::NotEqual => Some((IrType::Bool, Constant::Bool(a != b))),
-                _ => None,
-            }
-        }
-        (Constant::Null, Constant::Null) => {
-            match op {
-                BinOpKind::Equal => Some((IrType::Bool, Constant::Bool(true))),
-                BinOpKind::NotEqual => Some((IrType::Bool, Constant::Bool(false))),
-                _ => None,
-            }
-        }
+            BinOpKind::Equal => Some((IrType::Bool, Constant::Bool(a == b))),
+            BinOpKind::NotEqual => Some((IrType::Bool, Constant::Bool(a != b))),
+            BinOpKind::Less => Some((IrType::Bool, Constant::Bool(a < b))),
+            BinOpKind::LessEqual => Some((IrType::Bool, Constant::Bool(a <= b))),
+            BinOpKind::Greater => Some((IrType::Bool, Constant::Bool(a > b))),
+            BinOpKind::GreaterEqual => Some((IrType::Bool, Constant::Bool(a >= b))),
+            _ => None,
+        },
+        (Constant::Bool(a), Constant::Bool(b)) => match op {
+            BinOpKind::And => Some((IrType::Bool, Constant::Bool(*a && *b))),
+            BinOpKind::Or => Some((IrType::Bool, Constant::Bool(*a || *b))),
+            BinOpKind::Equal => Some((IrType::Bool, Constant::Bool(a == b))),
+            BinOpKind::NotEqual => Some((IrType::Bool, Constant::Bool(a != b))),
+            _ => None,
+        },
+        (Constant::String(a), Constant::String(b)) => match op {
+            BinOpKind::Add => Some((IrType::String, Constant::String(format!("{}{}", a, b)))),
+            BinOpKind::Equal => Some((IrType::Bool, Constant::Bool(a == b))),
+            BinOpKind::NotEqual => Some((IrType::Bool, Constant::Bool(a != b))),
+            _ => None,
+        },
+        (Constant::Null, Constant::Null) => match op {
+            BinOpKind::Equal => Some((IrType::Bool, Constant::Bool(true))),
+            BinOpKind::NotEqual => Some((IrType::Bool, Constant::Bool(false))),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -232,8 +247,17 @@ fn fold_branches(func: &mut IrFunction) -> bool {
     let mut changed = false;
     for block in &mut func.blocks {
         if let Some(term) = block.instructions.last_mut() {
-            if let Instruction::Branch { condition: Operand::Constant(Constant::Bool(b)), then_label, else_label } = term {
-                let target = if *b { then_label.clone() } else { else_label.clone() };
+            if let Instruction::Branch {
+                condition: Operand::Constant(Constant::Bool(b)),
+                then_label,
+                else_label,
+            } = term
+            {
+                let target = if *b {
+                    then_label.clone()
+                } else {
+                    else_label.clone()
+                };
                 *term = Instruction::Jump { target };
                 changed = true;
             }
@@ -285,7 +309,11 @@ fn simplify_jumps(func: &mut IrFunction) -> bool {
                         changed = true;
                     }
                 }
-                Instruction::Branch { then_label, else_label, .. } => {
+                Instruction::Branch {
+                    then_label,
+                    else_label,
+                    ..
+                } => {
                     if let Some(new_target) = forwarding.get(then_label) {
                         *then_label = new_target.clone();
                         changed = true;
@@ -316,9 +344,8 @@ fn eliminate_unreachable_blocks(func: &mut IrFunction) -> bool {
     reachable.insert(entry_label.clone());
     worklist.push(entry_label);
 
-    let label_to_block: HashMap<String, &BasicBlock> = func.blocks.iter()
-        .map(|b| (b.label.clone(), b))
-        .collect();
+    let label_to_block: HashMap<String, &BasicBlock> =
+        func.blocks.iter().map(|b| (b.label.clone(), b)).collect();
 
     while let Some(current_label) = worklist.pop() {
         if let Some(block) = label_to_block.get(&current_label) {
@@ -329,7 +356,11 @@ fn eliminate_unreachable_blocks(func: &mut IrFunction) -> bool {
                             worklist.push(target.clone());
                         }
                     }
-                    Instruction::Branch { then_label, else_label, .. } => {
+                    Instruction::Branch {
+                        then_label,
+                        else_label,
+                        ..
+                    } => {
                         if reachable.insert(then_label.clone()) {
                             worklist.push(then_label.clone());
                         }

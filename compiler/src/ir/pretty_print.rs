@@ -117,11 +117,22 @@ fn write_instruction(buf: &mut String, instr: &Instruction) -> fmt::Result {
             left,
             right,
         } => {
-            write!(buf, "{dest} = {} {} {}", write_binop(op), write_operand(left), write_operand(right))
+            write!(
+                buf,
+                "{dest} = {} {} {}",
+                write_binop(op),
+                write_operand(left),
+                write_operand(right)
+            )
         }
 
         Instruction::UnaryOp { dest, op, operand } => {
-            write!(buf, "{dest} = {} {}", write_unaryop(op), write_operand(operand))
+            write!(
+                buf,
+                "{dest} = {} {}",
+                write_unaryop(op),
+                write_operand(operand)
+            )
         }
 
         Instruction::Call { dest, callee, args } => {

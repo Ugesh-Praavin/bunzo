@@ -13,36 +13,77 @@ use crate::source;
 /// Usage message printed when the user provides invalid arguments.
 const USAGE: &str = "\
 Usage:
-    bzc run <file.bz>";
+    bzc run <file.bz>
+    bzc emit-c <file.bz> [-o <output>]
+    bzc build <file.bz> [-o <output>]";
+
+/// Find the runtime directory containing runtime.c/runtime.h
+fn find_runtime_dir() -> Option<std::path::PathBuf> {
+    // 1. Try relative to current working directory
+    if let Ok(cwd) = std::env::current_dir() {
+        let path = cwd.join("runtime");
+        if path.join("runtime.c").exists() {
+            return Some(path);
+        }
+    }
+
+    // 2. Try relative to executable path
+    if let Ok(exe) = std::env::current_exe() {
+        let mut dir = exe.parent();
+        while let Some(d) = dir {
+            let path = d.join("runtime");
+            if path.join("runtime.c").exists() {
+                return Some(path);
+            }
+            // Sibling check
+            if let Some(p) = d.parent() {
+                let path = p.join("runtime");
+                if path.join("runtime.c").exists() {
+                    return Some(path);
+                }
+            }
+            dir = d.parent();
+        }
+    }
+    None
+}
 
 /// Runs the compiler CLI with the given command-line arguments.
-///
-/// `args` should be the full argument list including the program name
-/// (i.e. the result of `std::env::args().collect()`).
 ///
 /// # Returns
 ///
 /// Returns `Ok(())` on success, or an error message string on failure.
-/// The caller is responsible for writing errors to stderr and setting
-/// the exit code.
 pub fn run(args: &[String]) -> Result<(), String> {
-    // args[0] = program name, args[1] = subcommand, args[2] = file
-    if args.len() != 3 {
+    if args.len() < 3 {
         return Err(USAGE.to_string());
     }
 
-    let command = &args[1];
+    let command = args[1].as_str();
     let file_path = &args[2];
 
-    if command != "run" {
+    if command != "run" && command != "emit-c" && command != "build" {
         return Err(USAGE.to_string());
+    }
+
+    let mut output_path = None;
+    let mut i = 3;
+    while i < args.len() {
+        if args[i] == "-o" && i + 1 < args.len() {
+            output_path = Some(args[i + 1].clone());
+            i += 2;
+        } else {
+            return Err(USAGE.to_string());
+        }
+    }
+
+    if command == "run" && output_path.is_some() {
+        return Err("Error: -o option is not supported for 'run' command".to_string());
     }
 
     let path = Path::new(file_path);
+    let file_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("out");
 
     // Phase 1: Read source file.
-    eprintln!("Reading {file_path}...\n");
-
     let source = source::read_source(path).map_err(|e| format!("{e}"))?;
 
     // Phase 2: Tokenize source.
@@ -57,8 +98,118 @@ pub fn run(args: &[String]) -> Result<(), String> {
     // Phase 10: Type Checking.
     crate::typechecker::check(&program).map_err(|e| format!("{e}"))?;
 
-    // Phase 4: Interpret the AST.
-    crate::runtime::execute(program).map_err(|e| format!("{e}"))?;
+    if command == "run" {
+        // Phase 4: Interpret the AST.
+        crate::runtime::execute(program).map_err(|e| format!("{e}"))?;
+    } else {
+        // Lower to IR.
+        let mut ir_module = crate::ir::lower(&program).map_err(|e| format!("{e}"))?;
+
+        // Optimize the IR.
+        crate::ir::optimize(&mut ir_module);
+
+        // Generate C code.
+        let c_code = crate::codegen::generate(&ir_module).map_err(|e| format!("{e}"))?;
+
+        let c_file_path = if command == "emit-c" {
+            output_path
+                .clone()
+                .unwrap_or_else(|| format!("{}.c", file_stem))
+        } else {
+            format!("{}.c", file_stem)
+        };
+
+        // Write C file.
+        std::fs::write(&c_file_path, c_code)
+            .map_err(|e| format!("Error writing C output file {c_file_path}: {e}"))?;
+
+        if command == "build" {
+            let exe_path = output_path.clone().unwrap_or_else(|| {
+                #[cfg(target_os = "windows")]
+                {
+                    format!("{}.exe", file_stem)
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    file_stem.to_string()
+                }
+            });
+
+            // Find runtime directory.
+            let runtime_dir = find_runtime_dir().ok_or_else(|| {
+                "Error: Could not locate Bunzo runtime directory (runtime/runtime.c)".to_string()
+            })?;
+            let runtime_c_path = runtime_dir.join("runtime.c");
+            let runtime_include = runtime_dir.to_str().ok_or("Invalid runtime path")?;
+
+            // Try compilers.
+            let compilers = [
+                (
+                    "clang",
+                    vec![
+                        "-O2",
+                        "-o",
+                        &exe_path,
+                        &c_file_path,
+                        runtime_c_path.to_str().unwrap(),
+                        "-I",
+                        runtime_include,
+                        "-lm",
+                    ],
+                ),
+                (
+                    "gcc",
+                    vec![
+                        "-O2",
+                        "-o",
+                        &exe_path,
+                        &c_file_path,
+                        runtime_c_path.to_str().unwrap(),
+                        "-I",
+                        runtime_include,
+                        "-lm",
+                    ],
+                ),
+                (
+                    "cc",
+                    vec![
+                        "-O2",
+                        "-o",
+                        &exe_path,
+                        &c_file_path,
+                        runtime_c_path.to_str().unwrap(),
+                        "-I",
+                        runtime_include,
+                        "-lm",
+                    ],
+                ),
+            ];
+
+            let mut compiled = false;
+            for (cc, args) in &compilers {
+                match std::process::Command::new(cc).args(args).output() {
+                    Ok(output) if output.status.success() => {
+                        compiled = true;
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+
+            if compiled {
+                eprintln!("Successfully compiled to {}", exe_path);
+                // Clean up the temporary C file.
+                let _ = std::fs::remove_file(&c_file_path);
+            } else {
+                eprintln!(
+                    "Warning: No C compiler (clang/gcc/cc) succeeded. C source code written to {}",
+                    c_file_path
+                );
+            }
+        } else {
+            eprintln!("C source code written to {}", c_file_path);
+        }
+    }
 
     Ok(())
 }
