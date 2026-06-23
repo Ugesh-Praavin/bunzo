@@ -15,7 +15,8 @@ const USAGE: &str = "\
 Usage:
     bzc run <file.bz>
     bzc emit-c <file.bz> [-o <output>]
-    bzc build <file.bz> [-o <output>]";
+    bzc build <file.bz> [-o <output>]
+    bzc benchmark <file.bz> [--repeat <N>] [--emit-c] [--no-run]";
 
 /// Find the runtime directory containing runtime.c/runtime.h
 fn find_runtime_dir() -> Option<std::path::PathBuf> {
@@ -61,23 +62,50 @@ pub fn run(args: &[String]) -> Result<(), String> {
     let command = args[1].as_str();
     let file_path = &args[2];
 
-    if command != "run" && command != "emit-c" && command != "build" {
+    if command != "run" && command != "emit-c" && command != "build" && command != "benchmark" {
         return Err(USAGE.to_string());
     }
 
     let mut output_path = None;
-    let mut i = 3;
-    while i < args.len() {
-        if args[i] == "-o" && i + 1 < args.len() {
-            output_path = Some(args[i + 1].clone());
-            i += 2;
-        } else {
-            return Err(USAGE.to_string());
+    let mut repeat = 10;
+    let mut emit_c = false;
+    let mut no_run = false;
+
+    if command == "benchmark" {
+        let mut i = 3;
+        while i < args.len() {
+            if args[i] == "--repeat" && i + 1 < args.len() {
+                repeat = args[i + 1].parse::<usize>().map_err(|_| "Error: Invalid repeat count".to_string())?;
+                i += 2;
+            } else if args[i] == "--emit-c" {
+                emit_c = true;
+                i += 1;
+            } else if args[i] == "--no-run" {
+                no_run = true;
+                i += 1;
+            } else {
+                return Err(USAGE.to_string());
+            }
+        }
+    } else {
+        let mut i = 3;
+        while i < args.len() {
+            if args[i] == "-o" && i + 1 < args.len() {
+                output_path = Some(args[i + 1].clone());
+                i += 2;
+            } else {
+                return Err(USAGE.to_string());
+            }
         }
     }
 
     if command == "run" && output_path.is_some() {
         return Err("Error: -o option is not supported for 'run' command".to_string());
+    }
+
+    if command == "benchmark" {
+        crate::benchmark::run_benchmark(file_path, repeat, emit_c, no_run)?;
+        return Ok(());
     }
 
     let path = Path::new(file_path);

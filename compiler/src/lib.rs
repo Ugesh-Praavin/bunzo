@@ -4,6 +4,7 @@
 //! The binary entry point is in [`main.rs`], which delegates to [`cli::run`].
 
 pub mod ast;
+pub mod benchmark;
 pub mod cli;
 pub mod codegen;
 pub mod diagnostics;

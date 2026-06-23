@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-06-23T11:45:00Z",
+  "program": "loops.bz",
+  "compiler_timings": {
+    "lexing_ms": 0.290,
+    "parsing_ms": 0.388,
+    "semantic_ms": 0.562,
+    "type_checking_ms": 0.182,
+    "ir_generation_ms": 0.111,
+    "optimization_ms": 0.159,
+    "code_generation_ms": 0.291,
+    "total_ms": 2.689
+  },
+  "execution_timings": null,
+  "c_size_bytes": 989,
+  "exe_size_bytes": 0,
+  "optimization_enabled": true
+}

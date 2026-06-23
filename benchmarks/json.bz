@@ -1,0 +1,15 @@
+func validate_json(s: string) -> bool {
+    let open_braces = 0
+    let i = 0
+    while i < 100000 {
+        if open_braces == 0 {
+            open_braces = open_braces + 1
+        } else {
+            open_braces = open_braces - 1
+        }
+        i = i + 1
+    }
+    return open_braces == 0
+}
+let res = validate_json("{ \"a\": 1 }")
+print(res)

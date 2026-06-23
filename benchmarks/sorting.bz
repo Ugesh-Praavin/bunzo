@@ -1,0 +1,38 @@
+func sort5(a: int, b: int, c: int, d: int, e: int) {
+    let v1 = a
+    let v2 = b
+    let v3 = c
+    let v4 = d
+    let v5 = e
+
+    let i = 0
+    while i < 5 {
+        if v1 > v2 {
+            let t = v1
+            v1 = v2
+            v2 = t
+        }
+        if v2 > v3 {
+            let t = v2
+            v2 = v3
+            v3 = t
+        }
+        if v3 > v4 {
+            let t = v3
+            v3 = v4
+            v4 = t
+        }
+        if v4 > v5 {
+            let t = v4
+            v4 = v5
+            v5 = t
+        }
+        i = i + 1
+    }
+    print(v1)
+    print(v2)
+    print(v3)
+    print(v4)
+    print(v5)
+}
+sort5(5, 4, 3, 2, 1)
