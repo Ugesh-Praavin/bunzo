@@ -2,6 +2,19 @@ name: Release to SourceForge
 
 on:
   workflow_dispatch:
+    inputs:
+      linux_run_id:
+        description: "Run ID of the Build Linux workflow"
+        required: true
+        type: string
+      windows_run_id:
+        description: "Run ID of the Build Windows workflow"
+        required: true
+        type: string
+      version:
+        description: "Release version (e.g. v1.0.0)"
+        required: true
+        type: string
 
 jobs:
   release:
@@ -40,4 +53,4 @@ jobs:
             release/bunzo-windows-x86_64.zip \
             scripts/install.sh \
             scripts/install.ps1 \
-            ${{ secrets.SF_USERNAME }}@frs.sourceforge.net:/home/frs/project/bunzo/
+            ${{ secrets.SF_USERNAME }}@frs.sourceforge.net:/home/frs/project/bunzo/${{ github.event.inputs.version }}/
