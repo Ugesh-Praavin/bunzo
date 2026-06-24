@@ -1,34 +1,39 @@
 name: Release to SourceForge
-
 on:
-  workflow_dispatch:
-    inputs:
-      linux_run_id:
-        description: "Run ID of the Build Linux workflow"
-        required: true
-        type: string
-      windows_run_id:
-        description: "Run ID of the Build Windows workflow"
-        required: true
-        type: string
-      version:
-        description: "Release version (e.g. v1.0.0)"
-        required: true
-        type: string
+  workflow_run:
+    workflows: ["Build Windows"]
+    types: [completed]
+    branches: [main]
 
 jobs:
   release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Get Linux Build Run ID
+        id: get-linux-run
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build-linux.yml',
+              status: 'success',
+              per_page: 1
+            });
+            return runs.data.workflow_runs[0].id;
+          result-encoding: string
 
       - name: Download Linux Artifact
         uses: actions/download-artifact@v4
         with:
           name: bunzo-linux
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.inputs.linux_run_id }}
+          run-id: ${{ steps.get-linux-run.outputs.result }}
           path: release
 
       - name: Download Windows Artifact
@@ -36,7 +41,7 @@ jobs:
         with:
           name: bunzo-windows
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.inputs.windows_run_id }}
+          run-id: ${{ github.event.workflow_run.id }}
           path: release
 
       - name: Setup SSH
@@ -46,11 +51,11 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H frs.sourceforge.net >> ~/.ssh/known_hosts
 
-      - name: Upload All Files to SourceForge
+      - name: Upload to SourceForge
         run: |
           scp \
             release/bunzo-linux-x86_64.tar.gz \
             release/bunzo-windows-x86_64.zip \
             scripts/install.sh \
             scripts/install.ps1 \
-            ${{ secrets.SF_USERNAME }}@frs.sourceforge.net:/home/frs/project/bunzo/${{ github.event.inputs.version }}/
+            ${{ secrets.SF_USERNAME }}@frs.sourceforge.net:/home/frs/project/bunzo/
