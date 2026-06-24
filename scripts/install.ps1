@@ -1,20 +1,41 @@
-# Bunzo Windows Installer
-
 $InstallDir = "$env:LOCALAPPDATA\Bunzo"
+$BaseUrl = "https://sourceforge.net/projects/bunzo/files"
+$ZipPath = "$env:TEMP\bunzo-windows-x86_64.zip"
+$ExtractPath = "$env:TEMP\bunzo-extract"
 
-New-Item -ItemType Directory -Force -Path $InstallDir
+Write-Host "Installing Bunzo..."
 
-Copy-Item bunzo.exe $InstallDir -Force
+# Download
+Write-Host "Downloading bunzo..."
+Invoke-WebRequest -Uri "$BaseUrl/bunzo-windows-x86_64.zip" -OutFile $ZipPath
 
-$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+# Extract
+Expand-Archive -Path $ZipPath -DestinationPath $ExtractPath -Force
 
-if ($userPath -notlike "*$InstallDir*") {
-    [Environment]::SetEnvironmentVariable(
-        "Path",
-        "$userPath;$InstallDir",
-        "User"
-    )
+# Create install dir
+New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
+
+# Copy exe
+Copy-Item "$ExtractPath\bunzo.exe" "$InstallDir\bunzo.exe" -Force
+
+# Verify copy
+if (-Not (Test-Path "$InstallDir\bunzo.exe")) {
+    Write-Host "Error: Installation failed!" -ForegroundColor Red
+    exit 1
 }
 
-Write-Host "Bunzo installed successfully!"
+# Add to PATH
+$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+if ($userPath -notlike "*$InstallDir*") {
+    [Environment]::SetEnvironmentVariable("Path", "$userPath;$InstallDir", "User")
+    Write-Host "Added to PATH." -ForegroundColor Green
+} else {
+    Write-Host "Already in PATH, skipping." -ForegroundColor Yellow
+}
+
+# Cleanup
+Remove-Item $ZipPath -Force
+Remove-Item $ExtractPath -Recurse -Force
+
+Write-Host "Bunzo installed successfully!" -ForegroundColor Green
 Write-Host "Restart your terminal, then run: bunzo --help"
