@@ -79,6 +79,7 @@ fn generate_c_code(source: &str) -> String {
 // ═══════════════════════════════════════════════════════════════════════════
 
 #[test]
+#[ignore = "requires C compiler"]
 fn test_codegen_c_output_structure() {
     let source = "
         let x = 42
@@ -90,6 +91,7 @@ fn test_codegen_c_output_structure() {
 }
 
 #[test]
+#[ignore = "requires C compiler"]
 fn test_arithmetic_execution() {
     let source = "
         let x = 10
@@ -105,6 +107,7 @@ fn test_arithmetic_execution() {
 }
 
 #[test]
+#[ignore = "requires C compiler"]
 fn test_string_ops_execution() {
     let source = "
         let a = \"hello \"
@@ -120,6 +123,7 @@ fn test_string_ops_execution() {
 }
 
 #[test]
+#[ignore = "requires C compiler"]
 fn test_conditionals_execution() {
     let source = "
         let x = 42
@@ -135,6 +139,7 @@ fn test_conditionals_execution() {
 }
 
 #[test]
+#[ignore = "requires C compiler"]
 fn test_loops_execution() {
     let source = "
         let count = 0
@@ -149,6 +154,7 @@ fn test_loops_execution() {
 }
 
 #[test]
+#[ignore = "requires C compiler"]
 fn test_functions_and_recursion() {
     let source = "
         func fib(n: int) -> int {

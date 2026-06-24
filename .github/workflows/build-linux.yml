@@ -1,0 +1,26 @@
+name: Build Linux
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build Release Binary
+        run: cargo build --release
+      - name: Package Linux Tarball
+        run: |
+          mkdir -p release
+          cp target/release/bunzo release/
+          tar -czf bunzo-linux-x86_64.tar.gz -C release .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bunzo-linux
+          path: bunzo-linux-x86_64.tar.gz
