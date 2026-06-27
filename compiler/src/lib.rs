@@ -13,6 +13,7 @@ pub mod ir;
 pub mod lexer;
 pub mod linter;
 pub mod parser;
+pub mod repl;
 pub mod runtime;
 pub mod semantic;
 pub mod source;

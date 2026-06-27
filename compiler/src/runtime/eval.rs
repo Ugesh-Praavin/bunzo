@@ -87,6 +87,34 @@ impl<W: std::io::Write> Interpreter<W> {
         Ok(())
     }
 
+    /// Evaluates a single statement. If it is an ExpressionStatement, returns the value.
+    pub fn interpret_statement(&mut self, stmt: &Statement) -> Result<Option<RuntimeValue>, CompilerError> {
+        match stmt {
+            Statement::ExpressionStatement { expression } => {
+                let val = self.eval_expr(expression)?;
+                Ok(Some(val))
+            }
+            _ => {
+                if let Some(signal) = self.exec_stmt(stmt)? {
+                    match signal {
+                        Signal::Throw(val, line, col) => {
+                            return Err(CompilerError::Thrown {
+                                value: val,
+                                line,
+                                column: col,
+                            });
+                        }
+                        Signal::Return(_) => {
+                            return Err(CompilerError::ReturnOutsideFunction { line: 0, column: 0 });
+                        }
+                        _ => {}
+                    }
+                }
+                Ok(None)
+            }
+        }
+    }
+
     // ── Statement execution ───────────────────────────────────────────
 
     fn exec_stmt(&mut self, stmt: &Statement) -> StmtResult {

@@ -5,6 +5,7 @@
 //! is delegated to the [`crate::source`] module, and tokenization
 //! is delegated to the [`crate::lexer`] module.
 
+use std::io::IsTerminal;
 use std::path::Path;
 
 use crate::lexer;
@@ -57,6 +58,13 @@ fn find_runtime_dir() -> Option<std::path::PathBuf> {
 ///
 /// Returns `Ok(())` on success, or an error message string on failure.
 pub fn run(args: &[String]) -> Result<(), String> {
+    if args.len() < 2 {
+        if !std::io::stdin().is_terminal() {
+            return Err(USAGE.to_string());
+        }
+        return crate::repl::run();
+    }
+
     if args.len() < 3 {
         return Err(USAGE.to_string());
     }
