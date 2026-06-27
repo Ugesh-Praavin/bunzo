@@ -93,6 +93,14 @@ jobs:
 
       - name: Upload to SourceForge
         run: |
+          # Upload tag-specific folder
           scp -r \
             release/${{ github.ref_name }} \
+            ${{ secrets.SF_USERNAME }}@frs.sourceforge.net:/home/frs/project/bunzo/
+          # Also update the latest root files
+          scp \
+            release/${{ github.ref_name }}/bunzo-linux-x86_64.tar.gz \
+            release/${{ github.ref_name }}/bunzo-windows-x86_64.zip \
+            scripts/install.sh \
+            scripts/install.ps1 \
             ${{ secrets.SF_USERNAME }}@frs.sourceforge.net:/home/frs/project/bunzo/
