@@ -15,8 +15,9 @@ Expand-Archive -Path $ZipPath -DestinationPath $ExtractPath -Force
 # Create install dir
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
-# Copy exe
+# Copy exe and runtime
 Copy-Item "$ExtractPath\bunzo.exe" "$InstallDir\bunzo.exe" -Force
+Copy-Item "$ExtractPath\runtime" "$InstallDir\runtime" -Recurse -Force
 
 # Verify copy
 if (-Not (Test-Path "$InstallDir\bunzo.exe")) {

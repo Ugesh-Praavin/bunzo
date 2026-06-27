@@ -11,7 +11,8 @@ echo "Downloading bunzo..."
 curl -fsSL "$BASE_URL/bunzo-linux-x86_64.tar.gz" -o /tmp/bunzo.tar.gz
 
 # Extract
-tar -xzf /tmp/bunzo.tar.gz -C /tmp
+mkdir -p /tmp/bunzo-extract
+tar -xzf /tmp/bunzo.tar.gz -C /tmp/bunzo-extract
 
 # Check sudo
 if ! command -v sudo &>/dev/null; then
@@ -20,10 +21,12 @@ if ! command -v sudo &>/dev/null; then
 fi
 
 # Install
-sudo install -m 755 /tmp/bunzo "$INSTALL_DIR/bunzo"
+sudo install -m 755 /tmp/bunzo-extract/bunzo "$INSTALL_DIR/bunzo"
+sudo mkdir -p "$INSTALL_DIR/runtime"
+sudo cp -r /tmp/bunzo-extract/runtime/* "$INSTALL_DIR/runtime/"
 
 # Cleanup
-rm -f /tmp/bunzo.tar.gz /tmp/bunzo
+rm -rf /tmp/bunzo.tar.gz /tmp/bunzo-extract
 
 # Verify
 if ! command -v bunzo &>/dev/null; then
