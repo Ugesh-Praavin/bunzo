@@ -169,3 +169,114 @@ fn test_functions_and_recursion() {
         assert_eq!(stdout, "13\n");
     }
 }
+
+#[test]
+#[ignore = "requires C compiler"]
+fn test_c_garbage_collector_direct() {
+    if !has_c_compiler() {
+        return;
+    }
+
+    let temp_dir = std::env::temp_dir();
+    let temp_file_c = temp_dir.join("test_gc_direct.c");
+    let temp_file_exe = temp_dir.join("test_gc_direct_exe");
+
+    let c_program = r#"
+#include "runtime.h"
+#include <stdio.h>
+#include <assert.h>
+#include <stdbool.h>
+
+typedef struct GCAllocation {
+    void* ptr;
+    size_t size;
+    bool marked;
+    struct GCAllocation* next;
+} GCAllocation;
+
+extern GCAllocation* bunzo_gc_allocations;
+
+int main() {
+    int dummy = 0;
+    bunzo_gc_init(&dummy);
+    
+    void* p1 = bunzo_gc_malloc(128);
+    void* p2 = bunzo_gc_malloc(256);
+    void* p3 = bunzo_gc_malloc(512);
+    
+    bunzo_gc_register_root(&p2);
+    
+    // We clear p3. It is no longer referenced.
+    p3 = NULL;
+    
+    // Keep p1 referenced on stack by printing or passing it to volatile
+    // to prevent optimizer from removing it.
+    volatile void* p1_vol = p1;
+    (void)p1_vol;
+    
+    bunzo_gc_collect();
+    
+    // p1 (128 bytes) and p2 (256 bytes) should remain.
+    // p3 (512 bytes) should be swept.
+    int found_512 = 0;
+    int found_256 = 0;
+    int found_128 = 0;
+    GCAllocation* curr = bunzo_gc_allocations;
+    while (curr) {
+        if (curr->size == 512) found_512 = 1;
+        if (curr->size == 256) found_256 = 1;
+        if (curr->size == 128) found_128 = 1;
+        curr = curr->next;
+    }
+    
+    assert(found_256 == 1);
+    assert(found_512 == 0);
+    
+    printf("GC test passed!\n");
+    bunzo_gc_cleanup();
+    return 0;
+}
+"#;
+
+    fs::write(&temp_file_c, c_program).unwrap();
+
+    let mut runtime_dir = std::path::PathBuf::from("runtime");
+    if !runtime_dir.exists() {
+        runtime_dir = std::path::PathBuf::from("../runtime");
+    }
+    let runtime_c_path = runtime_dir.join("runtime.c");
+    let runtime_include = runtime_dir.to_str().unwrap().to_string();
+
+    let cc = "gcc";
+    let args = vec![
+        "-O2", // optimize to clean up stale stack temporaries and registers
+        "-o",
+        temp_file_exe.to_str().unwrap(),
+        temp_file_c.to_str().unwrap(),
+        runtime_c_path.to_str().unwrap(),
+        "-I",
+        &runtime_include,
+        "-lm",
+    ];
+
+    let output = Command::new(cc).args(&args).output().unwrap();
+    if !output.status.success() {
+        let _ = fs::remove_file(&temp_file_c);
+        panic!("Compilation of GC test failed: {}", String::from_utf8_lossy(&output.stderr));
+    }
+
+    let _ = fs::remove_file(&temp_file_c);
+
+    let output_run = Command::new(temp_file_exe.to_str().unwrap()).output().unwrap();
+    let _ = fs::remove_file(&temp_file_exe);
+
+    if !output_run.status.success() {
+        panic!(
+            "GC test run failed!\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output_run.stdout),
+            String::from_utf8_lossy(&output_run.stderr)
+        );
+    }
+    let stdout = String::from_utf8(output_run.stdout).unwrap();
+    assert!(stdout.contains("GC test passed!"));
+}

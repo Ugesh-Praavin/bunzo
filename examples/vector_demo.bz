@@ -1,0 +1,63 @@
+import vector
+
+print("=== Vector Demo ===")
+let v = vector.new()
+let vc = vector.with_capacity(10)
+
+vector.push(v, 30)
+vector.push(v, 10)
+vector.push(v, 20)
+
+print("Length:")
+print(vector.len(v)) // 3
+print("Capacity:")
+print(vector.capacity(v)) // 3
+
+print("Is empty?")
+print(vector.is_empty(v)) // false
+
+print("Front:")
+print(vector.front(v)) // 30
+print("Back:")
+print(vector.back(v)) // 20
+
+vector.insert(v, 1, 99)
+print("Get at index 1:")
+print(vector.get(v, 1)) // 99
+
+vector.set(v, 2, 88)
+print("Get at index 2 after set:")
+print(vector.get(v, 2)) // 88
+
+vector.swap(v, 0, 3)
+print("Front after swap:")
+print(vector.front(v)) // 20
+
+print("Contains 99?")
+print(vector.contains(v, 99)) // true
+print("Index of 99:")
+print(vector.index_of(v, 99)) // 1
+
+vector.sort(v)
+print("First element after sort:")
+print(vector.front(v)) // 20 (since sorting sorts strings, 20 < 88 < 99)
+
+vector.reverse(v)
+print("First element after reverse:")
+print(vector.front(v)) // 99
+
+vector.remove(v, 0)
+print("Front after remove:")
+print(vector.front(v)) // 88
+
+vector.resize(v, 5)
+print("Len after resize:")
+print(vector.len(v)) // 5
+
+let it = vector.iter(v)
+print("Iter returned vector of length:")
+print(vector.len(it))
+
+vector.clear(v)
+print("Len after clear:")
+print(vector.len(v)) // 0

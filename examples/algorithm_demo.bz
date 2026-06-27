@@ -1,0 +1,69 @@
+import vector
+import algorithm
+
+print("=== Algorithm Demo ===")
+let v = vector.new()
+vector.push(v, "cherry")
+vector.push(v, "apple")
+vector.push(v, "banana")
+
+print("Find apple index:")
+print(algorithm.find(v, "apple")) // 1
+
+print("Min element:")
+print(algorithm.min(v)) // apple
+print("Min element index:")
+print(algorithm.min_element(v)) // 1
+
+print("Max element:")
+print(algorithm.max(v)) // cherry
+print("Max element index:")
+print(algorithm.max_element(v)) // 0
+
+algorithm.sort(v)
+print("First element after sort:")
+print(vector.get(v, 0)) // apple
+
+algorithm.reverse(v)
+print("First element after reverse:")
+print(vector.get(v, 0)) // cherry
+
+let v2 = algorithm.copy(v)
+print("Copied list first element:")
+print(vector.get(v2, 0)) // cherry
+
+algorithm.fill(v2, "xyz")
+print("First element after fill:")
+print(vector.get(v2, 0)) // xyz
+
+vector.push(v, "cherry")
+print("Count of cherry:")
+print(algorithm.count(v, "cherry")) // 2
+
+algorithm.unique(v)
+print("Count of cherry after unique:")
+print(algorithm.count(v, "cherry")) // 1
+
+algorithm.shuffle(v)
+print("Shuffled")
+
+algorithm.swap(v, 0, 1)
+print("Swapped index 0 and 1")
+
+algorithm.rotate(v, 1)
+print("Rotated by 1")
+
+algorithm.stable_sort(v)
+print("Stable sorted")
+
+print("Binary search banana:")
+print(algorithm.binary_search(v, "banana"))
+
+print("Lower bound banana:")
+print(algorithm.lower_bound(v, "banana"))
+
+print("Upper bound banana:")
+print(algorithm.upper_bound(v, "banana"))
+
+print("Find if index:")
+print(algorithm.find_if(v, 0))

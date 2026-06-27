@@ -1,0 +1,28 @@
+// GC Memory Leak Test
+// This program allocates a large number of temporary strings in a loop.
+// Without a Garbage Collector, this would leak significant memory.
+// With our conservative GC, memory is automatically reclaimed during execution.
+
+print("Starting GC Memory Leak Test...")
+
+let total_iterations = 50000
+let count = 0
+
+while count < total_iterations {
+    // Allocate temporary strings
+    let temp1 = "temp_string_prefix_"
+    let temp2 = "suffix_to_force_allocation_long_enough_to_test_garbage_collection_performance_"
+    
+    // Concatenate strings (forces dynamic heap allocation in C runtime)
+    let combined = temp1 + temp2
+    
+    if count % 10000 == 0 {
+        print("Iteration:")
+        print(count)
+    }
+    
+    count = count + 1
+}
+
+print("Successfully executed iterations with automatic memory reclamation:")
+print(count)

@@ -1,0 +1,53 @@
+import map
+
+print("=== Map Demo ===")
+let m = map.new()
+map.insert(m, "banana", 2)
+map.insert(m, "apple", 1)
+map.insert(m, "cherry", 3)
+
+print("Map len:")
+print(map.len(m)) // 3
+
+print("Is empty?")
+print(map.is_empty(m)) // false
+
+print("Value for apple:")
+print(map.get(m, "apple")) // 1
+
+print("Contains key apple?")
+print(map.contains(m, "apple")) // true
+
+print("Keys (ordered):")
+let k = map.keys(m)
+print(map.get(m, "apple")) // 1
+
+print("Values (ordered by key):")
+let v = map.values(m)
+print(map.get(m, "cherry")) // 3
+
+print("First key (min):")
+print(map.first_key(m)) // apple
+print("Last key (max):")
+print(map.last_key(m)) // cherry
+
+print("First value:")
+print(map.first_value(m)) // 1
+print("Last value:")
+print(map.last_value(m)) // 3
+
+print("Lower bound 'b':")
+print(map.lower_bound(m, "b")) // banana
+print("Upper bound 'banana':")
+print(map.upper_bound(m, "banana")) // cherry
+
+let it = map.iter(m)
+print("Map iter retrieved successfully")
+
+map.remove(m, "apple")
+print("Contains key apple after remove?")
+print(map.contains(m, "apple")) // false
+
+map.clear(m)
+print("Map len after clear:")
+print(map.len(m)) // 0

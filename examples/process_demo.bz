@@ -1,0 +1,9 @@
+import process
+
+print("=== Process Demo ===")
+print("PID:")
+print(process.pid())
+
+print("Echo hello via process.exec:")
+let out = process.exec("echo hello")
+print(out)

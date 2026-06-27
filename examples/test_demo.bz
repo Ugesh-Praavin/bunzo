@@ -1,0 +1,20 @@
+import test
+
+print("=== Test Demo ===")
+test.assert(true)
+print("Assert true passed")
+
+test.assert_eq(42, 42)
+print("Assert eq passed")
+
+test.assert_ne(42, 100)
+print("Assert ne passed")
+
+test.assert_true(true)
+print("Assert true passed")
+
+test.assert_false(false)
+print("Assert false passed")
+
+test.skip("skipping sample fail check")
+print("Skip completed")

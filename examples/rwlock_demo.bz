@@ -1,0 +1,12 @@
+import rwlock
+
+print("=== RWLock Demo ===")
+let lock = rwlock.new(200)
+
+print("Reading lock:")
+let r_val = rwlock.read(lock)
+print(r_val)
+
+print("Writing lock:")
+let w_val = rwlock.write(lock)
+print(w_val)

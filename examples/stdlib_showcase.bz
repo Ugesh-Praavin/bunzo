@@ -1,0 +1,105 @@
+// Bunzo Standard Library Showcase
+// Demonstrates new collections, string, path, random, encoding, and crypto modules.
+
+import vector
+import stack
+import set
+import map
+import string
+import path
+import time
+import random
+import crypto
+import encoding
+import filesystem
+
+print("=== Bunzo Standard Library Showcase ===")
+
+// 1. Vector
+print("1. Vector Demonstration:")
+let v = vector.new()
+vector.push(v, 10)
+vector.push(v, 20)
+vector.push(v, 30)
+print("Vector length:")
+print(vector.len(v))
+print("Element at index 1:")
+print(vector.get(v, 1))
+
+// 2. Stack
+print("2. Stack Demonstration:")
+let stk = stack.new()
+stack.push(stk, 100)
+stack.push(stk, 200)
+print("Stack top element:")
+print(stack.top(stk))
+print("Pushed elements count:")
+print(stack.len(stk))
+
+// 3. Set
+print("3. Set Demonstration:")
+let s = set.new()
+set.insert(s, "apple")
+set.insert(s, "banana")
+print("Set contains 'apple'?")
+print(set.contains(s, "apple"))
+print("Set contains 'orange'?")
+print(set.contains(s, "orange"))
+
+// 4. Map
+print("4. Map Demonstration:")
+let m = map.new()
+map.insert(m, "language", "Bunzo")
+map.insert(m, "version", "1.0")
+print("Map size:")
+print(map.len(m))
+print("Language value:")
+print(map.get(m, "language"))
+
+// 5. String
+print("5. String Manipulation:")
+let str_val = "  Bunzo Language  "
+let trimmed = string.trim(str_val)
+print("Trimmed string:")
+print(trimmed)
+print("String length:")
+print(string.len(trimmed))
+let replaced = string.replace(trimmed, "Language", "Systems")
+print("Replaced string:")
+print(replaced)
+
+// 6. Path
+print("6. Path utilities:")
+let joined_path = path.join("usr", "local")
+let file_name = path.join(joined_path, "bin")
+print("Joined path:")
+print(file_name)
+print("Base name of file:")
+print(path.basename(file_name))
+
+// 7. Time
+print("7. Time:")
+let current_time = time.now()
+print("Current timestamp (ms):")
+print(current_time)
+
+// 8. Random
+print("8. Random Number Generation:")
+let rand_int = random.int(1, 100)
+print("Random integer (1-100):")
+print(rand_int)
+let rand_bool = random.bool()
+print("Random boolean:")
+print(rand_bool)
+
+// 9. Crypto & Encoding
+print("9. Cryptography & Encoding:")
+let uuid = crypto.uuid()
+print("Generated UUID:")
+print(uuid)
+let text = "Hello"
+let encoded = encoding.hex_encode(text)
+print("Hex encoding of 'Hello':")
+print(encoded)
+
+print("Showcase executed successfully!")

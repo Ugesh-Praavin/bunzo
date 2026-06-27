@@ -1187,7 +1187,14 @@ impl TypeChecker {
                 line,
                 column,
             } => {
-                let builtins = ["math", "json", "http", "db", "os"];
+                let builtins = [
+                    "math", "json", "http", "db", "os",
+                    "vector", "deque", "stack", "queue", "priority_queue", "set", "hashset", "map", "hashmap", "bitset",
+                    "string", "filesystem", "path",
+                    "time", "random", "crypto", "encoding", "process", "io",
+                    "networking", "thread", "mutex", "channel", "environment", "rwlock",
+                    "atomic", "regex", "algorithm", "numeric", "test"
+                ];
                 if builtins.contains(&name.as_str()) {
                     self.env.borrow_mut().define(name.clone(), Type::Any);
                     return Ok(());

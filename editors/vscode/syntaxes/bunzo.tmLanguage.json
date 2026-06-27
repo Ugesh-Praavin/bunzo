@@ -1,0 +1,108 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Bunzo",
+    "scopeName": "source.bz",
+    "patterns": [
+        { "include": "#comments" },
+        { "include": "#strings" },
+        { "include": "#numbers" },
+        { "include": "#keywords" },
+        { "include": "#builtins" },
+        { "include": "#operators" },
+        { "include": "#types" }
+    ],
+    "repository": {
+        "comments": {
+            "patterns": [
+                {
+                    "name": "comment.line.double-slash.bz",
+                    "match": "//.*$"
+                },
+                {
+                    "name": "comment.block.bz",
+                    "begin": "/\\*",
+                    "end": "\\*/"
+                }
+            ]
+        },
+        "strings": {
+            "patterns": [
+                {
+                    "name": "string.quoted.double.bz",
+                    "begin": "\"",
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.bz",
+                            "match": "\\\\."
+                        }
+                    ]
+                }
+            ]
+        },
+        "numbers": {
+            "patterns": [
+                {
+                    "name": "constant.numeric.float.bz",
+                    "match": "\\b\\d+\\.\\d+\\b"
+                },
+                {
+                    "name": "constant.numeric.integer.bz",
+                    "match": "\\b\\d+\\b"
+                }
+            ]
+        },
+        "keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.control.bz",
+                    "match": "\\b(if|else|while|for|in|break|continue|return|try|catch|throw)\\b"
+                },
+                {
+                    "name": "keyword.declaration.bz",
+                    "match": "\\b(let|const|func|class|struct|interface|import|export)\\b"
+                }
+            ]
+        },
+        "builtins": {
+            "patterns": [
+                {
+                    "name": "support.function.builtin.bz",
+                    "match": "\\b(print)\\b"
+                },
+                {
+                    "name": "constant.language.bz",
+                    "match": "\\b(true|false|null)\\b"
+                }
+            ]
+        },
+        "operators": {
+            "patterns": [
+                {
+                    "name": "keyword.operator.arithmetic.bz",
+                    "match": "\\+|-|\\*|/|%|\\+\\+|--"
+                },
+                {
+                    "name": "keyword.operator.comparison.bz",
+                    "match": "==|!=|<=|>=|<|>"
+                },
+                {
+                    "name": "keyword.operator.logical.bz",
+                    "match": "&&|\\|\\||!"
+                },
+                {
+                    "name": "keyword.operator.assignment.bz",
+                    "match": "=|\\+=|-=|\\*=|/="
+                }
+            ]
+        },
+        "types": {
+            "patterns": [
+                {
+                    "name": "support.type.primitive.bz",
+                    "match": "\\b(int|float|string|bool|any|void)\\b"
+                }
+            ]
+        }
+    }
+}

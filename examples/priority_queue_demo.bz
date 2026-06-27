@@ -1,0 +1,30 @@
+import priority_queue
+
+print("=== Priority Queue Demo ===")
+let pq = priority_queue.new()
+priority_queue.push(pq, 20)
+priority_queue.push(pq, 30)
+priority_queue.push(pq, 10)
+
+print("Priority Queue len:")
+print(priority_queue.len(pq)) // 3
+
+print("Is empty?")
+print(priority_queue.is_empty(pq)) // false
+
+print("Top element (max):")
+print(priority_queue.top(pq)) // 30
+
+print("Contains 20?")
+print(priority_queue.contains(pq, 20)) // true
+
+print("Pop top:")
+print(priority_queue.pop(pq)) // 30
+
+let it = priority_queue.iter(pq)
+print("Priority Queue len from iter:")
+print(priority_queue.len(it))
+
+priority_queue.clear(pq)
+print("Priority Queue len after clear:")
+print(priority_queue.len(pq)) // 0

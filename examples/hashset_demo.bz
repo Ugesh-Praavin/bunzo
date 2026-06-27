@@ -1,0 +1,47 @@
+import hashset
+
+print("=== HashSet Demo ===")
+let s = hashset.new()
+hashset.insert(s, "banana")
+hashset.insert(s, "apple")
+hashset.insert(s, "cherry")
+
+print("HashSet len:")
+print(hashset.len(s)) // 3
+
+print("Is empty?")
+print(hashset.is_empty(s)) // false
+
+print("Contains apple?")
+print(hashset.contains(s, "apple")) // true
+
+let s2 = hashset.new()
+hashset.insert(s2, "date")
+hashset.insert(s2, "apple")
+
+print("Union len:")
+let u = hashset.union(s, s2)
+print(hashset.len(u)) // 4
+
+print("Intersection len:")
+let inter = hashset.intersection(s, s2)
+print(hashset.len(inter)) // 1
+
+print("Difference len:")
+let diff = hashset.difference(s, s2)
+print(hashset.len(diff)) // 2
+
+print("Symmetric difference len:")
+let sym_diff = hashset.symmetric_difference(s, s2)
+print(hashset.len(sym_diff)) // 3
+
+let it = hashset.iter(s)
+print("HashSet iter retrieved successfully")
+
+hashset.remove(s, "apple")
+print("Contains apple after remove?")
+print(hashset.contains(s, "apple")) // false
+
+hashset.clear(s)
+print("HashSet len after clear:")
+print(hashset.len(s)) // 0

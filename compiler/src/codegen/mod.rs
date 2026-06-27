@@ -216,8 +216,8 @@ pub fn generate(module: &IrModule) -> Result<String, CompilerError> {
     writer.line("/* Global Variables */");
     let mut sorted_globals: Vec<_> = global_vars.keys().collect();
     sorted_globals.sort();
-    for name in sorted_globals {
-        let ty = global_vars.get(name).unwrap();
+    for name in &sorted_globals {
+        let ty = global_vars.get(*name).unwrap();
         let c_ty = ir_type_to_c_type(ty);
         writer.line(format!("{c_ty} var_{};", escape_c_name(name)));
     }
@@ -457,7 +457,15 @@ pub fn generate(module: &IrModule) -> Result<String, CompilerError> {
     writer.line("/* Entry Point wrapper */");
     writer.line("int main(int argc, char** argv) {");
     writer.indent();
-    writer.line("escape_main__main__();");
+    writer.line("bunzo_gc_init(&argc);");
+    for name in &sorted_globals {
+        let ty = global_vars.get(*name).unwrap();
+        if is_pointer_type(ty) {
+            writer.line(format!("bunzo_gc_register_root((void**)&var_{});", escape_c_name(name)));
+        }
+    }
+    writer.line(format!("{}();", escape_c_name("__main__")));
+    writer.line("bunzo_gc_cleanup();");
     writer.line("return 0;");
     writer.outdent();
     writer.line("}");
@@ -558,4 +566,16 @@ fn bin_op_to_c(op: &BinOpKind) -> &'static str {
         BinOpKind::And => "&&",
         BinOpKind::Or => "||",
     }
+}
+
+fn is_pointer_type(ty: &IrType) -> bool {
+    matches!(
+        ty,
+        IrType::String
+            | IrType::Class(_)
+            | IrType::Struct(_)
+            | IrType::Array(_)
+            | IrType::Function { .. }
+            | IrType::Any
+    )
 }

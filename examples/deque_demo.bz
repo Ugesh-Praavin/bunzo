@@ -1,0 +1,38 @@
+import deque
+
+print("=== Deque Demo ===")
+let d = deque.new()
+deque.push_back(d, 20)
+deque.push_front(d, 10)
+deque.push_back(d, 30)
+
+print("Deque len:")
+print(deque.len(d)) // 3
+
+print("Is empty?")
+print(deque.is_empty(d)) // false
+
+print("Front element:")
+print(deque.front(d)) // 10
+print("Back element:")
+print(deque.back(d)) // 30
+
+deque.set(d, 1, 99)
+print("Index 1 value:")
+print(deque.get(d, 1)) // 99
+
+print("Contains 99?")
+print(deque.contains(d, 99)) // true
+
+print("Pop front:")
+print(deque.pop_front(d)) // 10
+print("Pop back:")
+print(deque.pop_back(d)) // 30
+
+let it = deque.iter(d)
+print("Deque len from iter:")
+print(deque.len(it))
+
+deque.clear(d)
+print("Deque len after clear:")
+print(deque.len(d)) // 0
