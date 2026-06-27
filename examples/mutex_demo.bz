@@ -1,0 +1,11 @@
+import mutex
+
+print("=== Mutex Demo ===")
+let m = mutex.new(100)
+
+print("Locking mutex:")
+let val = mutex.lock(m)
+print(val)
+
+mutex.unlock(m)
+print("Unlocked mutex")

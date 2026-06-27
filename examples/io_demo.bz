@@ -1,0 +1,10 @@
+import io
+
+print("=== IO Demo ===")
+print("Read line (non-blocking if stdin empty):")
+let line = io.read_line()
+print(line)
+
+print("Read char:")
+let ch = io.read_char()
+print(ch)

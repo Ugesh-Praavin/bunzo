@@ -1,0 +1,31 @@
+import queue
+
+print("=== Queue Demo ===")
+let q = queue.new()
+queue.push(q, 10)
+queue.push(q, 20)
+
+print("Queue len:")
+print(queue.len(q)) // 2
+
+print("Is empty?")
+print(queue.is_empty(q)) // false
+
+print("Front:")
+print(queue.front(q)) // 10
+print("Back:")
+print(queue.back(q)) // 20
+
+print("Contains 20?")
+print(queue.contains(q, 20)) // true
+
+print("Pop front:")
+print(queue.pop(q)) // 10
+
+let it = queue.iter(q)
+print("Queue len from iter:")
+print(queue.len(it))
+
+queue.clear(q)
+print("Queue len after clear:")
+print(queue.len(q)) // 0

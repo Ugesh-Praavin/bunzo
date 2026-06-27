@@ -1,0 +1,27 @@
+import regex
+
+print("=== Regex Demo ===")
+let pattern = "a.c"
+let text = "abbc abcd"
+
+print("Is match?")
+print(regex.is_match(pattern, text)) // true
+
+print("Match:")
+print(regex.match(pattern, text)) // abc
+
+print("Find:")
+print(regex.find(pattern, text)) // abc
+
+print("Search index:")
+print(regex.search(pattern, text)) // 5
+
+print("Find all matches:")
+let all = regex.find_all(pattern, text)
+print(all)
+
+print("Replace:")
+print(regex.replace("a.c", "abbc abcd", "XYZ")) // abbc XYZd
+
+print("Split:")
+print(regex.split(" ", "a b c"))

@@ -1,0 +1,88 @@
+import process
+import environment
+import io
+import networking
+import thread
+import mutex
+import rwlock
+import channel
+import atomic
+import regex
+import algorithm
+import numeric
+import test
+import vector
+
+print("=== Bunzo Standard Library Showcase ===")
+
+// 1. Process
+print("1. Process PID:")
+print(process.pid() > 0)
+
+// 2. Environment
+print("2. Environment:")
+environment.set("SHOWCASE_VAR", "perfect")
+print(environment.get("SHOWCASE_VAR"))
+environment.remove("SHOWCASE_VAR")
+
+// 3. IO (Non-blocking check)
+print("3. IO:")
+print("Skip interactive IO")
+
+// 4. Networking
+print("4. Networking:")
+let sock = networking.udp_bind("127.0.0.1:28376")
+networking.udp_send(sock, "127.0.0.1:28376", "network ok")
+print(networking.udp_recv(sock))
+
+// 5. Thread
+print("5. Thread:")
+let tid = thread.spawn(100)
+thread.join(tid)
+print("Thread spawn & join ok")
+
+// 6. Mutex
+print("6. Mutex:")
+let m = mutex.new("mutex content")
+print(mutex.lock(m))
+mutex.unlock(m)
+
+// 7. RWLock
+print("7. RWLock:")
+let lock = rwlock.new("rwlock content")
+print(rwlock.read(lock))
+
+// 8. Channel
+print("8. Channel:")
+let ch = channel.new()
+channel.send(ch, "channel item")
+print(channel.recv(ch))
+
+// 9. Atomic
+print("9. Atomic:")
+let a = atomic.new(100)
+print(atomic.add(a, 50))
+
+// 10. Regex
+print("10. Regex:")
+print(regex.is_match("x.z", "xyz"))
+
+// 11. Algorithm
+print("11. Algorithm:")
+let v = vector.new()
+vector.push(v, "c")
+vector.push(v, "a")
+vector.push(v, "b")
+algorithm.sort(v)
+print(vector.get(v, 0))
+
+// 12. Numeric
+print("12. Numeric:")
+print(numeric.clamp(5, 10, 20)) // 10
+
+// 13. Test
+print("13. Test:")
+test.assert_eq(123, 123)
+print("All assertions passed")
+
+print("=== Showcase Completed Successfully ===")

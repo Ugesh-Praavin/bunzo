@@ -1,0 +1,9 @@
+import thread
+
+print("=== Thread Demo ===")
+let id = thread.spawn(123)
+print("Spawned thread ID:")
+print(id)
+
+thread.join(id)
+print("Joined thread")

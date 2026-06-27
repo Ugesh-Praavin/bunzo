@@ -75,3 +75,47 @@ fn test_import_db_module() {
     assert!(out.contains("DbConnection"));
     assert!(out.contains("Array"));
 }
+
+#[test]
+fn test_new_stdlib_modules() {
+    let out = run_source(
+        r#"
+        import vector
+        import stack
+        import set
+        import map
+        import string
+        import path
+        import time
+        import random
+        import crypto
+        import encoding
+
+        let v = vector.new()
+        vector.push(v, 10)
+        vector.push(v, 20)
+        print(vector.len(v))
+
+        let stk = stack.new()
+        stack.push(stk, 100)
+        print(stack.top(stk))
+
+        let s = set.new()
+        set.insert(s, "hello")
+        print(set.contains(s, "hello"))
+
+        let m = map.new()
+        map.insert(m, "key", "val")
+        print(map.get(m, "key"))
+
+        print(string.len("test"))
+        print(path.join("a", "b"))
+        print(encoding.hex_encode("A"))
+        print(type(random.int))
+        print(type(crypto.uuid))
+        "#,
+    )
+    .unwrap();
+    assert_eq!(out, "2\n100\ntrue\nval\n4\na/b\n41\nBuiltin\nBuiltin\n");
+}
+

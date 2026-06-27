@@ -1,0 +1,18 @@
+import networking
+
+print("=== Networking Demo ===")
+let sock = networking.udp_bind("127.0.0.1:28374")
+print("UDP Bound ID:")
+print(sock)
+
+networking.udp_send(sock, "127.0.0.1:28374", "hello networking")
+print("UDP packet sent")
+
+let msg = networking.udp_recv(sock)
+print("UDP packet received:")
+print(msg)
+
+// Also show TCP listener creation
+let listener = networking.tcp_listen("127.0.0.1:28375")
+print("TCP Listener ID:")
+print(listener)

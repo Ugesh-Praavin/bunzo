@@ -1,0 +1,69 @@
+import bitset
+
+print("=== BitSet Demo ===")
+let b1 = bitset.new(8)
+let b2 = bitset.new(8)
+
+bitset.set(b1, 2)
+bitset.set(b1, 5)
+
+bitset.set(b2, 5)
+bitset.set(b2, 7)
+
+print("BitSet 1 len:")
+print(bitset.len(b1)) // 8
+
+print("Count of set bits (b1):")
+print(bitset.count(b1)) // 2
+
+print("Test bit 2 (b1):")
+print(bitset.test(b1, 2)) // true
+print("Test bit 3 (b1):")
+print(bitset.test(b1, 3)) // false
+
+bitset.flip(b1, 3)
+print("Test bit 3 (b1) after flip:")
+print(bitset.test(b1, 3)) // true
+
+bitset.reset(b1, 3)
+print("Test bit 3 (b1) after reset:")
+print(bitset.test(b1, 3)) // false
+
+print("Any bits set in b1?")
+print(bitset.any(b1)) // true
+
+let b_empty = bitset.new(8)
+print("None bits set in empty bitset?")
+print(bitset.none(b_empty)) // true
+
+let b_full = bitset.new(4)
+bitset.set(b_full, 0)
+bitset.set(b_full, 1)
+bitset.set(b_full, 2)
+bitset.set(b_full, 3)
+print("All bits set in full bitset?")
+print(bitset.all(b_full)) // true
+
+print("AND operation count:")
+let b_and = bitset.and(b1, b2)
+print(bitset.count(b_and)) // 1 (bit 5)
+
+print("OR operation count:")
+let b_or = bitset.or(b1, b2)
+print(bitset.count(b_or)) // 3 (bits 2, 5, 7)
+
+print("XOR operation count:")
+let b_xor = bitset.xor(b1, b2)
+print(bitset.count(b_xor)) // 2 (bits 2, 7)
+
+print("NOT operation count (b_full):")
+let b_not = bitset.not(b_full)
+print(bitset.count(b_not)) // 0
+
+let it = bitset.iter(b1)
+print("BitSet len from iter:")
+print(bitset.len(it))
+
+bitset.clear(b1)
+print("Count after clear:")
+print(bitset.count(b1)) // 0

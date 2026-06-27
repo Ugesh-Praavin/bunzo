@@ -1,0 +1,12 @@
+import channel
+
+print("=== Channel Demo ===")
+let chan = channel.new()
+
+channel.send(chan, "message 1")
+channel.send(chan, "message 2")
+
+print("Received from channel:")
+print(channel.recv(chan))
+print("Received from channel:")
+print(channel.recv(chan))

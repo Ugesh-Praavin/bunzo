@@ -581,7 +581,13 @@ impl Parser {
         let line = keyword.line;
         let column = keyword.column;
 
-        let name_token = self.expect(TokenKind::Identifier, "module name")?;
+        let name_token = if self.check(&TokenKind::Identifier) {
+            self.advance()
+        } else if self.check(&TokenKind::Channel) {
+            self.advance()
+        } else {
+            self.expect(TokenKind::Identifier, "module name")?
+        };
         let name = name_token.lexeme;
 
         let path = if self.check(&TokenKind::From) {
@@ -1041,10 +1047,23 @@ impl Parser {
                 expr = self.finish_call(expr)?;
             } else if self.check(&TokenKind::Dot) {
                 let dot = self.advance();
-                let field_token = self.expect(TokenKind::Identifier, "field name")?;
+                let field_lexeme = if self.check(&TokenKind::Identifier) {
+                    self.advance().lexeme
+                } else {
+                    let next = self.peek();
+                    match next.kind {
+                        TokenKind::Spawn | TokenKind::Channel | TokenKind::Match | TokenKind::Import | TokenKind::Export => {
+                            self.advance().lexeme
+                        }
+                        _ => {
+                            let t = self.expect(TokenKind::Identifier, "field name")?;
+                            t.lexeme
+                        }
+                    }
+                };
                 expr = Expression::FieldAccess {
                     object: Box::new(expr),
-                    field: field_token.lexeme,
+                    field: field_lexeme,
                     line: dot.line,
                     column: dot.column,
                 };
@@ -1208,7 +1227,7 @@ impl Parser {
                 })
             }
 
-            TokenKind::Identifier => {
+            TokenKind::Identifier | TokenKind::Channel | TokenKind::Spawn => {
                 self.advance();
                 if !self.no_struct_literal && self.check(&TokenKind::LeftBrace) {
                     self.parse_struct_literal(token.lexeme, token.line, token.column)

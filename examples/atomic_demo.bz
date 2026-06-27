@@ -1,0 +1,14 @@
+import atomic
+
+print("=== Atomic Demo ===")
+let a = atomic.new(10)
+
+print("Loaded:")
+print(atomic.load(a))
+
+atomic.store(a, 20)
+print("Loaded after store:")
+print(atomic.load(a))
+
+print("Atomic add 5:")
+print(atomic.add(a, 5))

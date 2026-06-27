@@ -1,0 +1,62 @@
+import set
+
+print("=== Set Demo ===")
+let s = set.new()
+set.insert(s, "banana")
+set.insert(s, "apple")
+set.insert(s, "cherry")
+
+print("Set len:")
+print(set.len(s)) // 3
+
+print("Is empty?")
+print(set.is_empty(s)) // false
+
+print("Contains apple?")
+print(set.contains(s, "apple")) // true
+
+print("First element (min):")
+print(set.first(s)) // apple
+print("Last element (max):")
+print(set.last(s)) // cherry
+
+print("Min:")
+print(set.min(s)) // apple
+print("Max:")
+print(set.max(s)) // cherry
+
+print("Lower bound 'b':")
+print(set.lower_bound(s, "b")) // banana
+print("Upper bound 'banana':")
+print(set.upper_bound(s, "banana")) // cherry
+
+let s2 = set.new()
+set.insert(s2, "date")
+set.insert(s2, "apple")
+
+print("Union len:")
+let u = set.union(s, s2)
+print(set.len(u)) // 4 (apple, banana, cherry, date)
+
+print("Intersection len:")
+let inter = set.intersection(s, s2)
+print(set.len(inter)) // 1 (apple)
+
+print("Difference len:")
+let diff = set.difference(s, s2)
+print(set.len(diff)) // 2 (banana, cherry)
+
+print("Symmetric difference len:")
+let sym_diff = set.symmetric_difference(s, s2)
+print(set.len(sym_diff)) // 3 (banana, cherry, date)
+
+let it = set.iter(s)
+print("Set iter retrieved successfully")
+
+set.remove(s, "apple")
+print("Contains apple after remove?")
+print(set.contains(s, "apple")) // false
+
+set.clear(s)
+print("Set len after clear:")
+print(set.len(s)) // 0

@@ -1,0 +1,45 @@
+import vector
+import numeric
+
+print("=== Numeric Demo ===")
+print("Min of 10 and 20:")
+print(numeric.min(10, 20))
+
+print("Max of 10 and 20:")
+print(numeric.max(10, 20))
+
+print("Clamp 15 in [10, 20]:")
+print(numeric.clamp(15, 10, 20))
+print("Clamp 5 in [10, 20]:")
+print(numeric.clamp(5, 10, 20))
+
+print("Abs of -5:")
+print(numeric.abs(-5))
+print("Abs of -5.5:")
+print(numeric.abs(-5.5))
+
+print("GCD of 54 and 24:")
+print(numeric.gcd(54, 24)) // 6
+
+print("LCM of 54 and 24:")
+print(numeric.lcm(54, 24)) // 216
+
+print("Factorial of 5:")
+print(numeric.factorial(5)) // 120
+
+let v = vector.new()
+vector.push(v, 10)
+vector.push(v, 20)
+vector.push(v, 30)
+
+print("Average:")
+print(numeric.average(v)) // 20.0
+
+print("Sum:")
+print(numeric.sum(v)) // 60
+
+print("Product:")
+print(numeric.product(v)) // 6000
+
+print("Accumulate starting from 100:")
+print(numeric.accumulate(v, 100)) // 160

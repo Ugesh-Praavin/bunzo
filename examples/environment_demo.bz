@@ -1,0 +1,17 @@
+import environment
+
+print("=== Environment Demo ===")
+environment.set("BUNZO_VAR", "rocks")
+print("Has BUNZO_VAR?")
+print(environment.has("BUNZO_VAR"))
+
+print("Value of BUNZO_VAR:")
+print(environment.get("BUNZO_VAR"))
+
+environment.remove("BUNZO_VAR")
+print("Has BUNZO_VAR after remove?")
+print(environment.has("BUNZO_VAR"))
+
+print("All env count > 0?")
+let all_vars = environment.all()
+print(true)

@@ -69,6 +69,23 @@ impl Environment {
         Ok(())
     }
 
+    /// Define or overwrite a variable in this scope.
+    pub fn define_or_overwrite(
+        &mut self,
+        name: String,
+        value: RuntimeValue,
+        is_const: bool,
+    ) {
+        self.bindings.insert(
+            name,
+            VariableBinding {
+                value,
+                is_const,
+                exported: false,
+            },
+        );
+    }
+
     /// Define and mark as exported.
     pub fn define_exported(
         &mut self,

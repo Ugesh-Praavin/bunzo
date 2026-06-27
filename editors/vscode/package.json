@@ -1,0 +1,72 @@
+{
+    "name": "vscode-bunzo",
+    "displayName": "Bunzo Language Support",
+    "description": "Rich language support for the Bunzo programming language.",
+    "version": "0.1.0",
+    "publisher": "ugesh-praavin",
+    "engines": {
+        "vscode": "^1.75.0"
+    },
+    "categories": [
+        "Programming Languages",
+        "Linters",
+        "Formatters"
+    ],
+    "activationEvents": [],
+    "main": "./out/extension.js",
+    "contributes": {
+        "languages": [{
+            "id": "bunzo",
+            "aliases": ["Bunzo", "bunzo"],
+            "extensions": [".bz"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "bunzo",
+            "scopeName": "source.bz",
+            "path": "./syntaxes/bunzo.tmLanguage.json"
+        }],
+        "configuration": {
+            "type": "object",
+            "title": "Bunzo configuration",
+            "properties": {
+                "bunzo.compilerPath": {
+                    "type": "string",
+                    "default": "bzc",
+                    "description": "Path to the Bunzo compiler executable (bzc)."
+                },
+                "bunzo.useCompilerLsp": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "When set to true, the extension launches the compiler-based LSP server ('bzc lsp') instead of the Node-based one."
+                },
+                "bunzo.trace.server": {
+                    "type": "string",
+                    "enum": [
+                        "off",
+                        "messages",
+                        "verbose"
+                    ],
+                    "default": "off",
+                    "description": "Traces the communication between VS Code and the Bunzo language server."
+                }
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile"
+    },
+    "dependencies": {
+        "vscode-languageclient": "^8.1.0",
+        "vscode-languageserver": "^8.1.0",
+        "vscode-languageserver-textdocument": "^1.0.8"
+    },
+    "devDependencies": {
+        "@types/node": "^16.18.34",
+        "@types/vscode": "^1.75.0",
+        "typescript": "^5.1.3"
+    }
+}

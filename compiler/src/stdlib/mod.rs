@@ -6,6 +6,23 @@ pub mod http;
 pub mod json;
 pub mod math;
 pub mod os;
+pub mod collections;
+pub mod string;
+pub mod filesystem;
+pub mod path;
+pub mod time_module;
+pub mod random;
+pub mod crypto;
+pub mod encoding;
+pub mod process;
+pub mod io_module;
+pub mod networking;
+pub mod concurrency;
+pub mod environment;
+pub mod regex;
+pub mod algorithm;
+pub mod numeric;
+pub mod test;
 
 pub use builtins::register_builtins;
 
@@ -19,6 +36,36 @@ pub fn build_module(name: &str) -> Option<RuntimeValue> {
         "math" => Some(math::build()),
         "os" => Some(os::build()),
         "db" => Some(db::build()),
+        "vector" => Some(collections::build_vector()),
+        "deque" => Some(collections::build_deque()),
+        "stack" => Some(collections::build_stack()),
+        "queue" => Some(collections::build_queue()),
+        "priority_queue" => Some(collections::build_priority_queue()),
+        "set" => Some(collections::build_set()),
+        "hashset" => Some(collections::build_set()),
+        "map" => Some(collections::build_map()),
+        "hashmap" => Some(collections::build_map()),
+        "bitset" => Some(collections::build_bitset()),
+        "string" => Some(string::build()),
+        "filesystem" => Some(filesystem::build()),
+        "path" => Some(path::build()),
+        "time" => Some(time_module::build()),
+        "random" => Some(random::build()),
+        "crypto" => Some(crypto::build()),
+        "encoding" => Some(encoding::build()),
+        "process" => Some(process::build()),
+        "environment" => Some(environment::build()),
+        "io" => Some(io_module::build()),
+        "networking" => Some(networking::build()),
+        "thread" => Some(concurrency::build_thread()),
+        "mutex" => Some(concurrency::build_mutex()),
+        "rwlock" => Some(concurrency::build_rwlock()),
+        "channel" => Some(concurrency::build_channel()),
+        "atomic" => Some(concurrency::build_atomic()),
+        "regex" => Some(regex::build()),
+        "algorithm" => Some(algorithm::build()),
+        "numeric" => Some(numeric::build()),
+        "test" => Some(test::build()),
         _ => None,
     }
 }

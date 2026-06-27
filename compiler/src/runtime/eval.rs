@@ -1226,7 +1226,7 @@ impl<W: std::io::Write> Interpreter<W> {
         if let Some(module) = build_module(name) {
             self.environment
                 .borrow_mut()
-                .define(name.to_string(), module, true, line, column)?;
+                .define_or_overwrite(name.to_string(), module, true);
             return Ok(None);
         }
 
@@ -1256,7 +1256,7 @@ impl<W: std::io::Write> Interpreter<W> {
         let module_val = RuntimeValue::Map(Rc::new(RefCell::new(exports)));
         self.environment
             .borrow_mut()
-            .define(name.to_string(), module_val, true, line, column)?;
+            .define_or_overwrite(name.to_string(), module_val, true);
         Ok(None)
     }
 

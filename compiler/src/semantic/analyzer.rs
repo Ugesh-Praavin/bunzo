@@ -247,8 +247,251 @@ impl SemanticAnalyzer {
                 .map(String::from)
                 .collect(),
         );
+        analyzer.analyzed_modules.insert(
+            "vector".to_string(),
+            vec![
+                "new", "with_capacity", "push", "pop", "get", "set", "insert", "remove",
+                "front", "back", "len", "capacity", "is_empty", "clear", "contains",
+                "index_of", "reverse", "sort", "resize", "swap", "iter"
+            ]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "deque".to_string(),
+            vec![
+                "new", "push_front", "push_back", "pop_front", "pop_back", "front", "back",
+                "get", "set", "len", "is_empty", "clear", "contains", "iter"
+            ]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "stack".to_string(),
+            vec!["new", "push", "pop", "top", "len", "is_empty", "clear", "contains", "iter"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "queue".to_string(),
+            vec!["new", "push", "pop", "front", "back", "len", "is_empty", "clear", "contains", "iter"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "priority_queue".to_string(),
+            vec!["new", "push", "pop", "top", "len", "is_empty", "clear", "contains", "iter"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "set".to_string(),
+            vec![
+                "new", "insert", "remove", "contains", "len", "is_empty", "clear",
+                "first", "last", "min", "max", "lower_bound", "upper_bound",
+                "union", "intersection", "difference", "symmetric_difference", "iter"
+            ]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "hashset".to_string(),
+            vec![
+                "new", "insert", "remove", "contains", "len", "is_empty", "clear",
+                "union", "intersection", "difference", "symmetric_difference", "iter"
+            ]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "map".to_string(),
+            vec![
+                "new", "insert", "get", "remove", "contains", "len", "is_empty", "clear",
+                "keys", "values", "first_key", "last_key", "first_value", "last_value",
+                "lower_bound", "upper_bound", "iter"
+            ]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "hashmap".to_string(),
+            vec![
+                "new", "insert", "get", "remove", "contains", "len", "is_empty", "clear",
+                "keys", "values", "iter"
+            ]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "bitset".to_string(),
+            vec![
+                "new", "set", "reset", "flip", "test", "count", "any", "none", "all",
+                "len", "clear", "and", "or", "xor", "not", "iter"
+            ]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "string".to_string(),
+            vec!["len", "split", "join", "trim", "replace", "substring"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "filesystem".to_string(),
+            vec!["read", "write", "exists", "mkdir", "remove", "listdir"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "path".to_string(),
+            vec!["join", "basename", "dirname", "extension"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "time".to_string(),
+            vec!["now", "sleep", "timestamp"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "random".to_string(),
+            vec!["int", "float", "bool"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "crypto".to_string(),
+            vec!["sha256", "uuid"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "encoding".to_string(),
+            vec!["hex_encode", "hex_decode"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "process".to_string(),
+            vec!["exec", "pid"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "io".to_string(),
+            vec!["read_line", "read_char"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "environment".to_string(),
+            vec!["get", "set", "has", "remove", "all"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "networking".to_string(),
+            vec!["tcp_listen", "tcp_accept", "tcp_connect", "tcp_send", "tcp_recv", "udp_bind", "udp_send", "udp_recv"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "thread".to_string(),
+            vec!["spawn", "join"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "mutex".to_string(),
+            vec!["new", "lock", "unlock"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "rwlock".to_string(),
+            vec!["new", "read", "write"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "channel".to_string(),
+            vec!["new", "send", "recv"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "atomic".to_string(),
+            vec!["new", "load", "store", "add"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "regex".to_string(),
+            vec!["match", "search", "find", "find_all", "replace", "split", "is_match"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "algorithm".to_string(),
+            vec![
+                "sort", "stable_sort", "reverse", "shuffle", "find", "find_if",
+                "binary_search", "lower_bound", "upper_bound", "min", "max",
+                "min_element", "max_element", "copy", "fill", "rotate", "swap",
+                "unique", "count"
+            ]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "numeric".to_string(),
+            vec![
+                "min", "max", "clamp", "abs", "gcd", "lcm", "factorial",
+                "average", "sum", "product", "accumulate"
+            ]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        analyzer.analyzed_modules.insert(
+            "test".to_string(),
+            vec!["assert", "assert_eq", "assert_ne", "assert_true", "assert_false", "fail", "skip"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
         analyzer
     }
+
 
     fn abstract_methods_inherited(&self, parent: &str) -> HashSet<String> {
         let mut pending = HashSet::new();

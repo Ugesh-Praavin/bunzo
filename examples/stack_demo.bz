@@ -1,0 +1,29 @@
+import stack
+
+print("=== Stack Demo ===")
+let s = stack.new()
+stack.push(s, 100)
+stack.push(s, 200)
+
+print("Stack len:")
+print(stack.len(s)) // 2
+
+print("Is empty?")
+print(stack.is_empty(s)) // false
+
+print("Top element:")
+print(stack.top(s)) // 200
+
+print("Contains 100?")
+print(stack.contains(s, 100)) // true
+
+print("Pop top:")
+print(stack.pop(s)) // 200
+
+let it = stack.iter(s)
+print("Stack len from iter:")
+print(stack.len(it))
+
+stack.clear(s)
+print("Stack len after clear:")
+print(stack.len(s)) // 0
