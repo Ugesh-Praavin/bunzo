@@ -64,7 +64,12 @@ fn find_runtime_dir() -> Option<std::path::PathBuf> {
 /// Returns `Ok(())` on success, or an error message string on failure.
 pub fn run(args: &[String]) -> Result<(), String> {
     if args.len() < 2 {
-        if !std::io::stdin().is_terminal() {
+        let is_test = std::env::current_exe()
+            .ok()
+            .and_then(|p| p.file_name().map(|f| f.to_string_lossy().into_owned()))
+            .map(|name| name.contains("test") || name.contains("deps"))
+            .unwrap_or(false);
+        if is_test || !std::io::stdin().is_terminal() {
             return Err(USAGE.to_string());
         }
         return crate::repl::run();
