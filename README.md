@@ -56,14 +56,14 @@ Bunzo is being built with the following planned capabilities:
 | Abstract Syntax Tree     | ✅ Complete   |
 | Interpreter              | ✅ Complete   |
 | Semantic Analysis        | ✅ Complete   |
-| Type Checker             | 📋 Planned   |
+| Type Checker             | ✅ Complete   |
 | IR Generation            | ✅ Complete   |
 | IR Optimization          | ✅ Complete   |
-| Standard Library         | 📋 Planned   |
-| Package Manager          | 📋 Planned   |
-| Formatter                | 📋 Planned   |
-| Language Server (LSP)    | 📋 Planned   |
-| VS Code Extension        | 📋 Planned   |
+| Standard Library         | ✅ Complete   |
+| Package Manager          | ✅ Complete   |
+| Formatter                | ✅ Complete   |
+| Language Server (LSP)    | ✅ Complete   |
+| VS Code Extension        | ✅ Complete   |
 | Native Compiler Backend  | 🔮 Future    |
 | LLVM Backend             | 🔮 Future    |
 | WebAssembly Target       | 🔮 Future    |
@@ -186,7 +186,7 @@ cargo clippy -- -D warnings
 
 ## Roadmap
 
-### Phase 1 — Core Compiler *(Current)*
+### Phase 1 — Core Compiler
 - [x] Project foundation and architecture
 - [x] Lexer
 - [x] Parser
@@ -195,21 +195,23 @@ cargo clippy -- -D warnings
 
 ### Phase 2 — Language Features
 - [x] Semantic analysis
-- [ ] Type checker
+- [x] Type checker
 - [x] IR Generation
 - [x] IR Optimization
-- [ ] Standard library
-- [ ] Module system
+- [x] Standard library
+- [x] Module system
 
 ### Phase 3 — Developer Tooling
-- [ ] Package manager
-- [ ] Code formatter
-- [ ] REPL
+- [x] Package manager
+- [x] Code formatter
+- [x] REPL
+- [x] Language Server (LSP)
+- [x] VS Code Extension
 
 ### Phase 4 — Backend Development Features
-- [ ] Built-in HTTP server
-- [ ] Database connectivity
-- [ ] REST API support
+- [x] Built-in HTTP server
+- [x] Database connectivity
+- [x] REST API support
 
 ### Phase 5 — Advanced
 - [ ] Native compiler backend

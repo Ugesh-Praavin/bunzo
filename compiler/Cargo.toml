@@ -1,6 +1,6 @@
 [package]
 name = "bzc"
-version = "0.6.0-alpha"
+version = "0.7.0"
 edition = "2024"
 authors = ["Ugesh Praavin D"]
 license = "MIT OR Apache-2.0"
