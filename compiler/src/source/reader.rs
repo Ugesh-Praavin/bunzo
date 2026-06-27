@@ -23,3 +23,45 @@ pub fn read_source(path: &Path) -> Result<String, CompilerError> {
 
     std::fs::read_to_string(path).map_err(CompilerError::Io)
 }
+
+/// Resolves a module name and optional path into a file path and its content.
+///
+/// Looks up in:
+/// 1. `path.bz` (if path is specified)
+/// 2. `name.bz`
+/// 3. `modules/name/mod.bz`
+/// 4. `modules/name.bz`
+/// 5. `stdlib/name.bz`
+pub fn resolve_module(
+    name: &str,
+    path: Option<&str>,
+    line: usize,
+    column: usize,
+) -> Result<(String, String), CompilerError> {
+    let candidates: Vec<String> = if let Some(p) = path {
+        vec![if p.ends_with(".bz") {
+            p.to_string()
+        } else {
+            format!("{p}.bz")
+        }]
+    } else {
+        vec![
+            format!("{name}.bz"),
+            format!("modules/{name}/mod.bz"),
+            format!("modules/{name}.bz"),
+            format!("stdlib/{name}.bz"),
+        ]
+    };
+
+    for file_path in &candidates {
+        if let Ok(content) = std::fs::read_to_string(file_path) {
+            return Ok((file_path.clone(), content));
+        }
+    }
+
+    Err(CompilerError::ModuleNotFound {
+        name: name.to_string(),
+        line,
+        column,
+    })
+}
