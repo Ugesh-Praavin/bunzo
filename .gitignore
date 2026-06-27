@@ -58,4 +58,4 @@ Desktop.ini
 *.pdb
 
 
-/Editor/vscode/node_modules/
+/editor/vscode/node_modules/
