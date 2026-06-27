@@ -2,7 +2,7 @@
 set -euo pipefail
 
 INSTALL_DIR="/usr/local/bin"
-BASE_URL="https://sourceforge.net/projects/bunzo/files"
+BASE_URL="https://downloads.sourceforge.net/project/bunzo"
 
 echo "Installing Bunzo..."
 

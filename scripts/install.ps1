@@ -1,5 +1,5 @@
 $InstallDir = "$env:LOCALAPPDATA\Bunzo"
-$BaseUrl = "https://sourceforge.net/projects/bunzo/files"
+$BaseUrl = "https://downloads.sourceforge.net/project/bunzo"
 $ZipPath = "$env:TEMP\bunzo-windows-x86_64.zip"
 $ExtractPath = "$env:TEMP\bunzo-extract"
 
