@@ -5,6 +5,7 @@
 //! is delegated to the [`crate::source`] module, and tokenization
 //! is delegated to the [`crate::lexer`] module.
 
+use std::io::IsTerminal;
 use std::path::Path;
 
 use crate::lexer;
