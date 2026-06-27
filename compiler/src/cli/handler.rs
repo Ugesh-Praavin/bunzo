@@ -23,7 +23,8 @@ Usage:
     bzc install
     bzc update
     bzc add <package_name> <git_url>
-    bzc remove <package_name>";
+    bzc remove <package_name>
+    bzc lsp";
 
 /// Find the runtime directory containing runtime.c/runtime.h
 fn find_runtime_dir() -> Option<std::path::PathBuf> {
@@ -63,10 +64,20 @@ fn find_runtime_dir() -> Option<std::path::PathBuf> {
 /// Returns `Ok(())` on success, or an error message string on failure.
 pub fn run(args: &[String]) -> Result<(), String> {
     if args.len() < 2 {
-        return Err(USAGE.to_string());
+        if !std::io::stdin().is_terminal() {
+            return Err(USAGE.to_string());
+        }
+        return crate::repl::run();
     }
 
     let command = args[1].as_str();
+
+    if command == "lsp" {
+        if args.len() != 2 {
+            return Err(USAGE.to_string());
+        }
+        return crate::lsp::run();
+    }
 
     if command == "install" {
         if args.len() != 2 {

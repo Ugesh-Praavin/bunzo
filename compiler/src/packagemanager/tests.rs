@@ -1,7 +1,6 @@
 use super::manifest::Manifest;
 use crate::source::resolve_module;
 use std::fs;
-use std::path::Path;
 
 #[test]
 fn test_parse_manifest() {
