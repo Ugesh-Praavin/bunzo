@@ -1202,25 +1202,7 @@ impl<W: std::io::Write> Interpreter<W> {
             return Ok(None);
         }
 
-        // File-based import: cwd, then stdlib/
-        let candidates: Vec<String> = if let Some(p) = path {
-            vec![if p.ends_with(".bz") {
-                p.to_string()
-            } else {
-                format!("{p}.bz")
-            }]
-        } else {
-            vec![format!("{name}.bz"), format!("stdlib/{name}.bz")]
-        };
-
-        let source = candidates
-            .iter()
-            .find_map(|file_path| std::fs::read_to_string(file_path).ok())
-            .ok_or(CompilerError::ModuleNotFound {
-                name: name.to_string(),
-                line,
-                column,
-            })?;
+        let (_, source) = crate::source::resolve_module(name, path, line, column)?;
 
         let tokens = crate::lexer::tokenize(&source).map_err(|e| e)?;
         let program = crate::parser::parse(tokens).map_err(|e| e)?;
