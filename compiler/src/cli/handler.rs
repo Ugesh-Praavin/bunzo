@@ -17,7 +17,8 @@ Usage:
     bzc emit-c <file.bz> [-o <output>]
     bzc build <file.bz> [-o <output>]
     bzc benchmark <file.bz> [--repeat <N>] [--emit-c] [--no-run]
-    bzc fmt <file_or_dir> [--check]";
+    bzc fmt <file_or_dir> [--check]
+    bzc lint <file_or_dir>";
 
 /// Find the runtime directory containing runtime.c/runtime.h
 fn find_runtime_dir() -> Option<std::path::PathBuf> {
@@ -63,7 +64,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
     let command = args[1].as_str();
     let file_path = &args[2];
 
-    if command != "run" && command != "emit-c" && command != "build" && command != "benchmark" && command != "fmt" {
+    if command != "run" && command != "emit-c" && command != "build" && command != "benchmark" && command != "fmt" && command != "lint" {
         return Err(USAGE.to_string());
     }
 
@@ -131,6 +132,13 @@ pub fn run(args: &[String]) -> Result<(), String> {
                 return Err(e);
             }
         }
+    }
+
+    if command == "lint" {
+        if args.len() > 3 {
+            return Err(USAGE.to_string());
+        }
+        return run_lint(file_path);
     }
 
     if command == "benchmark" {
@@ -354,4 +362,49 @@ fn collect_bz_files(path: &Path, files: &mut Vec<std::path::PathBuf>) -> std::io
         }
     }
     Ok(())
+}
+
+fn run_lint(path_str: &str) -> Result<(), String> {
+    let path = Path::new(path_str);
+    let mut files = Vec::new();
+    collect_bz_files(path, &mut files).map_err(|e| format!("Error collecting files: {}", e))?;
+
+    if files.is_empty() {
+        return Err(format!("No .bz files found at path: {}", path_str));
+    }
+
+    let mut has_warnings = false;
+
+    for file in &files {
+        let content = std::fs::read_to_string(file)
+            .map_err(|e| format!("Error reading {}: {}", file.display(), e))?;
+
+        let tokens = lexer::tokenize(&content)
+            .map_err(|e| format!("Error tokenizing {}: {}", file.display(), e))?;
+
+        let program = crate::parser::parse(tokens)
+            .map_err(|e| format!("Error parsing {}: {}", file.display(), e))?;
+
+        let warnings = crate::linter::lint(&program);
+        if !warnings.is_empty() {
+            has_warnings = true;
+            for w in warnings {
+                println!(
+                    "[{}] Warning in {}:{}:{}: {}",
+                    w.code,
+                    file.display(),
+                    w.line,
+                    w.column,
+                    w.message
+                );
+            }
+        }
+    }
+
+    if has_warnings {
+        Err("Lint checks failed with warnings".to_string())
+    } else {
+        println!("All checks passed!");
+        Ok(())
+    }
 }
