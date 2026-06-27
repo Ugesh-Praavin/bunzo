@@ -12,6 +12,7 @@ pub mod formatter;
 pub mod ir;
 pub mod lexer;
 pub mod linter;
+pub mod lsp;
 pub mod packagemanager;
 pub mod parser;
 pub mod repl;

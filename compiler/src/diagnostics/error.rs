@@ -332,8 +332,50 @@ pub enum CompilerError {
         column: usize,
     },
 
-    /// `super` used outside of a class method (BZ1027).
+    /// A `super` statement was used outside of a class method (BZ1027).
     InvalidSuper { line: usize, column: usize },
+}
+
+impl CompilerError {
+    /// Returns the 1-based line and column where this error occurred, if available.
+    pub fn location(&self) -> Option<(usize, usize)> {
+        match self {
+            CompilerError::FileNotFound(_) | CompilerError::Io(_) => None,
+            CompilerError::UnexpectedCharacter { line, column, .. }
+            | CompilerError::UnterminatedString { line, column }
+            | CompilerError::UnterminatedComment { line, column }
+            | CompilerError::UnexpectedToken { line, column, .. }
+            | CompilerError::ExpectedExpression { line, column, .. }
+            | CompilerError::UndefinedVariable { line, column, .. }
+            | CompilerError::ConstReassignment { line, column, .. }
+            | CompilerError::TypeMismatch { line, column, .. }
+            | CompilerError::DivisionByZero { line, column }
+            | CompilerError::DuplicateDeclaration { line, column, .. }
+            | CompilerError::NotCallable { line, column, .. }
+            | CompilerError::ArityMismatch { line, column, .. }
+            | CompilerError::ReturnOutsideFunction { line, column }
+            | CompilerError::BreakOutsideLoop { line, column }
+            | CompilerError::ContinueOutsideLoop { line, column }
+            | CompilerError::UnknownStruct { line, column, .. }
+            | CompilerError::StructFieldMismatch { line, column, .. }
+            | CompilerError::NoSuchField { line, column, .. }
+            | CompilerError::RuntimeException { line, column, .. }
+            | CompilerError::Thrown { line, column, .. }
+            | CompilerError::TypeAnnotationMismatch { line, column, .. }
+            | CompilerError::UsedAfterMove { line, column, .. }
+            | CompilerError::BorrowConflict { line, column, .. }
+            | CompilerError::ModuleNotFound { line, column, .. }
+            | CompilerError::UnexportedMemberAccess { line, column, .. }
+            | CompilerError::IndexOutOfBounds { line, column, .. }
+            | CompilerError::InvalidIndex { line, column, .. }
+            | CompilerError::UnknownParentClass { line, column, .. }
+            | CompilerError::AbstractClassInstantiation { line, column, .. }
+            | CompilerError::InterfaceNotImplemented { line, column, .. }
+            | CompilerError::PrivateFieldAccess { line, column, .. }
+            | CompilerError::AbstractMethodNotImplemented { line, column, .. }
+            | CompilerError::InvalidSuper { line, column } => Some((*line, *column)),
+        }
+    }
 }
 
 impl fmt::Display for CompilerError {
