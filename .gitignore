@@ -56,3 +56,6 @@ Desktop.ini
 
 # Debug files
 *.pdb
+
+
+/Editor/vscode/node_modules/
