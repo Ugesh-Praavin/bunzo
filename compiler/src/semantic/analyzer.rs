@@ -792,24 +792,7 @@ impl SemanticAnalyzer {
                 column,
             } => {
                 if !self.analyzed_modules.contains_key(name) {
-                    let candidates: Vec<String> = if let Some(p) = path {
-                        vec![if p.ends_with(".bz") {
-                            p.clone()
-                        } else {
-                            format!("{p}.bz")
-                        }]
-                    } else {
-                        vec![format!("{name}.bz"), format!("stdlib/{name}.bz")]
-                    };
-
-                    let source = candidates
-                        .iter()
-                        .find_map(|file_path| std::fs::read_to_string(file_path).ok())
-                        .ok_or_else(|| CompilerError::ModuleNotFound {
-                            name: name.clone(),
-                            line: *line,
-                            column: *column,
-                        })?;
+                    let (_, source) = crate::source::resolve_module(name, path.as_deref(), *line, *column)?;
 
                     if self.active_imports.contains(name) {
                         return Err(CompilerError::RuntimeException {

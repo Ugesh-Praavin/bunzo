@@ -1,3 +1,3 @@
 /// Source file reading and management.
 pub mod reader;
-pub use reader::read_source;
+pub use reader::{read_source, resolve_module};

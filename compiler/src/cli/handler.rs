@@ -19,7 +19,11 @@ Usage:
     bzc build <file.bz> [-o <output>]
     bzc benchmark <file.bz> [--repeat <N>] [--emit-c] [--no-run]
     bzc fmt <file_or_dir> [--check]
-    bzc lint <file_or_dir>";
+    bzc lint <file_or_dir>
+    bzc install
+    bzc update
+    bzc add <package_name> <git_url>
+    bzc remove <package_name>";
 
 /// Find the runtime directory containing runtime.c/runtime.h
 fn find_runtime_dir() -> Option<std::path::PathBuf> {
@@ -59,17 +63,43 @@ fn find_runtime_dir() -> Option<std::path::PathBuf> {
 /// Returns `Ok(())` on success, or an error message string on failure.
 pub fn run(args: &[String]) -> Result<(), String> {
     if args.len() < 2 {
-        if !std::io::stdin().is_terminal() {
+        return Err(USAGE.to_string());
+    }
+
+    let command = args[1].as_str();
+
+    if command == "install" {
+        if args.len() != 2 {
             return Err(USAGE.to_string());
         }
-        return crate::repl::run();
+        return crate::packagemanager::install();
+    }
+
+    if command == "update" {
+        if args.len() != 2 {
+            return Err(USAGE.to_string());
+        }
+        return crate::packagemanager::update();
+    }
+
+    if command == "add" {
+        if args.len() != 4 {
+            return Err(USAGE.to_string());
+        }
+        return crate::packagemanager::add(&args[2], &args[3]);
+    }
+
+    if command == "remove" {
+        if args.len() != 3 {
+            return Err(USAGE.to_string());
+        }
+        return crate::packagemanager::remove(&args[2]);
     }
 
     if args.len() < 3 {
         return Err(USAGE.to_string());
     }
 
-    let command = args[1].as_str();
     let file_path = &args[2];
 
     if command != "run" && command != "emit-c" && command != "build" && command != "benchmark" && command != "fmt" && command != "lint" {
