@@ -43,7 +43,7 @@ connection.onInitialize((params: InitializeParams) => {
             // Enable completion.
             completionProvider: {
                 resolveProvider: true,
-                triggerCharacters: ['.']
+                triggerCharacters: ['.', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_']
             },
             // Enable hover tooltips.
             hoverProvider: true,
@@ -159,12 +159,16 @@ connection.onCompletion(
         const offset = document.offsetAt(textDocumentPosition.position);
         const text = document.getText();
 
-        // Determine if there is a dot prefix (e.g. math., http., etc.)
-        let lastWord = '';
+        // Extract the prefix the user has typed so far (word before cursor)
+        let prefix = '';
         let i = offset - 1;
-        while (i >= 0 && /\s/.test(text[i])) {
+        while (i >= 0 && /[a-zA-Z0-9_]/.test(text[i])) {
+            prefix = text[i] + prefix;
             i--;
         }
+
+        // Determine if there is a dot prefix (e.g. math., http., etc.)
+        let lastWord = '';
         if (i >= 0 && text[i] === '.') {
             let start = i - 1;
             while (start >= 0 && /[a-zA-Z0-9_]/.test(text[start])) {
@@ -175,18 +179,23 @@ connection.onCompletion(
 
         // Standard library dot completion
         if (lastWord && lastWord in MODULE_FUNCTIONS) {
-            return MODULE_FUNCTIONS[lastWord].map(fn => ({
-                label: fn.label,
-                kind: fn.kind,
-                documentation: fn.documentation
-            }));
+            return MODULE_FUNCTIONS[lastWord]
+                .filter(fn => !prefix || fn.label.startsWith(prefix))
+                .map(fn => ({
+                    label: fn.label,
+                    kind: fn.kind,
+                    documentation: fn.documentation
+                }));
         }
 
         // Standard completions (keywords, builtins, types, packages)
         const keywords = [
-            'let', 'const', 'func', 'class', 'struct', 'interface',
-            'import', 'export', 'if', 'else', 'while', 'for', 'in',
-            'break', 'continue', 'return', 'try', 'catch', 'throw'
+            'let', 'const', 'var', 'func', 'class', 'struct', 'interface',
+            'import', 'export', 'from', 'if', 'else', 'while', 'for', 'in',
+            'break', 'continue', 'return', 'try', 'catch', 'throw',
+            'extends', 'implements', 'super', 'self', 'enum', 'match', 'switch',
+            'move', 'abstract', 'public', 'private', 'trait',
+            'spawn', 'async', 'await', 'channel'
         ];
         
         const builtins = ['print', 'true', 'false', 'null'];
@@ -195,48 +204,65 @@ connection.onCompletion(
         const items: CompletionItem[] = [];
 
         keywords.forEach(keyword => {
-            items.push({ label: keyword, kind: CompletionItemKind.Keyword, data: `keyword_${keyword}` });
+            if (!prefix || keyword.startsWith(prefix)) {
+                items.push({ label: keyword, kind: CompletionItemKind.Keyword, data: `keyword_${keyword}` });
+            }
         });
         builtins.forEach(builtin => {
-            items.push({ label: builtin, kind: CompletionItemKind.Value, data: `builtin_${builtin}` });
+            if (!prefix || builtin.startsWith(prefix)) {
+                items.push({ label: builtin, kind: CompletionItemKind.Value, data: `builtin_${builtin}` });
+            }
         });
         types.forEach(type => {
-            items.push({ label: type, kind: CompletionItemKind.TypeParameter, data: `type_${type}` });
+            if (!prefix || type.startsWith(prefix)) {
+                items.push({ label: type, kind: CompletionItemKind.TypeParameter, data: `type_${type}` });
+            }
         });
         
         // Add all standard library modules as auto-completions
         STDLIB_MODULES.forEach(mod => {
-            items.push({ label: mod, kind: CompletionItemKind.Module, data: `module_${mod}` });
+            if (!prefix || mod.startsWith(prefix)) {
+                items.push({ label: mod, kind: CompletionItemKind.Module, data: `module_${mod}` });
+            }
         });
 
-        // Snippets
-        items.push({
-            label: 'func template',
-            kind: CompletionItemKind.Snippet,
-            insertText: 'func ${1:name}(${2:params}) {\n\t$0\n}',
-            insertTextFormat: 2,
-            documentation: 'Defines a Bunzo function.'
-        });
-        items.push({
-            label: 'if template',
-            kind: CompletionItemKind.Snippet,
-            insertText: 'if ${1:condition} {\n\t$0\n}',
-            insertTextFormat: 2,
-            documentation: 'If statement.'
-        });
-        items.push({
-            label: 'while template',
-            kind: CompletionItemKind.Snippet,
-            insertText: 'while ${1:condition} {\n\t$0\n}',
-            insertTextFormat: 2,
-            documentation: 'While loop.'
-        });
-        items.push({
-            label: 'for template',
-            kind: CompletionItemKind.Snippet,
-            insertText: 'for ${1:i} in ${2:start}..${3:end} {\n\t$0\n}',
-            insertTextFormat: 2,
-            documentation: 'For loop.'
+        // Snippets (only show if no prefix or matching)
+        const snippets: CompletionItem[] = [
+            {
+                label: 'func template',
+                kind: CompletionItemKind.Snippet,
+                insertText: 'func ${1:name}(${2:params}) {\n\t$0\n}',
+                insertTextFormat: 2,
+                documentation: 'Defines a Bunzo function.'
+            },
+            {
+                label: 'if template',
+                kind: CompletionItemKind.Snippet,
+                insertText: 'if ${1:condition} {\n\t$0\n}',
+                insertTextFormat: 2,
+                documentation: 'If statement.'
+            },
+            {
+                label: 'while template',
+                kind: CompletionItemKind.Snippet,
+                insertText: 'while ${1:condition} {\n\t$0\n}',
+                insertTextFormat: 2,
+                documentation: 'While loop.'
+            },
+            {
+                label: 'for template',
+                kind: CompletionItemKind.Snippet,
+                insertText: 'for ${1:i} in ${2:start}..${3:end} {\n\t$0\n}',
+                insertTextFormat: 2,
+                documentation: 'For loop.'
+            }
+        ];
+
+        snippets.forEach(s => {
+            const insertStr = typeof s.insertText === 'string' ? s.insertText : '';
+            if (!prefix || s.label.startsWith(prefix) || insertStr.startsWith(prefix)) {
+                items.push(s);
+            }
         });
 
         return items;
@@ -245,22 +271,65 @@ connection.onCompletion(
 
 connection.onCompletionResolve(
     (item: CompletionItem): CompletionItem => {
-        if (item.data === 'keyword_func') {
-            item.detail = 'Function Declaration';
-            item.documentation = 'Declares a reusable function block.';
-        } else if (item.data === 'keyword_let') {
-            item.detail = 'Mutable Variable';
-            item.documentation = 'Declares a mutable block-scoped variable.';
-        } else if (item.data === 'keyword_const') {
-            item.detail = 'Immutable Constant';
-            item.documentation = 'Declares a read-only block-scoped constant.';
-        } else if (item.data === 'builtin_print') {
-            item.detail = 'Print Statement';
-            item.documentation = 'Prints the string representation of a value to stdout.';
-        } else if (item.data && item.data.toString().startsWith('module_')) {
-            const modName = item.data.toString().replace('module_', '');
-            item.detail = `Module '${modName}'`;
-            item.documentation = `Import '${modName}' to use standard library functions.`;
+        const docMap: Record<string, { detail: string; documentation: string }> = {
+            'keyword_func': { detail: 'Function Declaration', documentation: 'Declares a reusable function block.' },
+            'keyword_let': { detail: 'Mutable Variable', documentation: 'Declares a mutable block-scoped variable.' },
+            'keyword_const': { detail: 'Immutable Constant', documentation: 'Declares a read-only block-scoped constant.' },
+            'keyword_var': { detail: 'Mutable Variable', documentation: 'Declares a mutable variable (alias for let).' },
+            'keyword_if': { detail: 'Conditional Branch', documentation: 'Executes a block if a condition is true.' },
+            'keyword_else': { detail: 'Alternate Branch', documentation: 'Executes a block when the preceding if condition is false.' },
+            'keyword_while': { detail: 'While Loop', documentation: 'Repeats a block while a condition is true.' },
+            'keyword_for': { detail: 'For Loop', documentation: 'Iterates over a range or collection.' },
+            'keyword_in': { detail: 'Range Keyword', documentation: 'Used in for-in range expressions.' },
+            'keyword_break': { detail: 'Break Statement', documentation: 'Exits the current loop.' },
+            'keyword_continue': { detail: 'Continue Statement', documentation: 'Skips to the next loop iteration.' },
+            'keyword_return': { detail: 'Return Statement', documentation: 'Returns a value from a function.' },
+            'keyword_class': { detail: 'Class Declaration', documentation: 'Declares a class with fields, methods, and inheritance.' },
+            'keyword_struct': { detail: 'Struct Declaration', documentation: 'Declares a lightweight value-type data structure.' },
+            'keyword_interface': { detail: 'Interface Declaration', documentation: 'Declares a contract that classes can implement.' },
+            'keyword_import': { detail: 'Import Statement', documentation: 'Imports a module.' },
+            'keyword_export': { detail: 'Export Statement', documentation: 'Exports a symbol from a module.' },
+            'keyword_from': { detail: 'From Clause', documentation: 'Specifies the source module in an import.' },
+            'keyword_try': { detail: 'Try Block', documentation: 'Attempts an operation that may throw.' },
+            'keyword_catch': { detail: 'Catch Block', documentation: 'Catches and handles thrown errors.' },
+            'keyword_throw': { detail: 'Throw Statement', documentation: 'Throws an error value.' },
+            'keyword_extends': { detail: 'Inheritance', documentation: 'Specifies a parent class for inheritance.' },
+            'keyword_implements': { detail: 'Interface Implementation', documentation: 'Declares that a class implements an interface.' },
+            'keyword_super': { detail: 'Parent Reference', documentation: 'References the parent class.' },
+            'keyword_self': { detail: 'Self Reference', documentation: 'References the current instance.' },
+            'keyword_enum': { detail: 'Enum Declaration', documentation: 'Declares an enumerated type.' },
+            'keyword_match': { detail: 'Pattern Matching', documentation: 'Performs pattern matching on a value.' },
+            'keyword_switch': { detail: 'Switch Statement', documentation: 'Multi-branch conditional (reserved).' },
+            'keyword_move': { detail: 'Move Ownership', documentation: 'Transfers ownership of a value.' },
+            'keyword_abstract': { detail: 'Abstract Modifier', documentation: 'Declares an abstract class or method.' },
+            'keyword_public': { detail: 'Public Access', documentation: 'Makes a field or method publicly accessible.' },
+            'keyword_private': { detail: 'Private Access', documentation: 'Restricts access to the declaring scope.' },
+            'keyword_trait': { detail: 'Trait Declaration', documentation: 'Alias for interface, defines shared behavior.' },
+            'keyword_spawn': { detail: 'Spawn Task', documentation: 'Spawns a concurrent task.' },
+            'keyword_async': { detail: 'Async Modifier', documentation: 'Marks a function as asynchronous.' },
+            'keyword_await': { detail: 'Await Expression', documentation: 'Awaits completion of an async operation.' },
+            'keyword_channel': { detail: 'Channel', documentation: 'Creates a communication channel.' },
+            'builtin_print': { detail: 'Print Statement', documentation: 'Prints the string representation of a value to stdout.' },
+            'builtin_true': { detail: 'Boolean True', documentation: 'Boolean literal true.' },
+            'builtin_false': { detail: 'Boolean False', documentation: 'Boolean literal false.' },
+            'builtin_null': { detail: 'Null Value', documentation: 'Represents the absence of a value.' },
+        };
+        if (item.data && typeof item.data === 'string') {
+            const entry = docMap[item.data];
+            if (entry) {
+                item.detail = entry.detail;
+                item.documentation = entry.documentation;
+            }
+            if (item.data.startsWith('module_')) {
+                const modName = item.data.replace('module_', '');
+                item.detail = `Module '${modName}'`;
+                item.documentation = `Import '${modName}' to use standard library functions.`;
+            }
+            if (item.data.startsWith('type_')) {
+                const typeName = item.data.replace('type_', '');
+                item.detail = `Type '${typeName}'`;
+                item.documentation = `Bunzo ${typeName} type.`;
+            }
         }
         return item;
     }
