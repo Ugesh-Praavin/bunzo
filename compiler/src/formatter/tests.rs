@@ -18,22 +18,13 @@ fn test_format_empty() {
 
 #[test]
 fn test_format_variables_and_constants() {
-    assert_formatted(
-        "let   x=42",
-        "let x = 42\n",
-    );
-    assert_formatted(
-        "const  y   =  \"hello\"",
-        "const y = \"hello\"\n",
-    );
+    assert_formatted("let   x=42", "let x = 42\n");
+    assert_formatted("const  y   =  \"hello\"", "const y = \"hello\"\n");
 }
 
 #[test]
 fn test_format_print() {
-    assert_formatted(
-        "print(  x  )",
-        "print(x)\n",
-    );
+    assert_formatted("print(  x  )", "print(x)\n");
 }
 
 #[test]
@@ -54,10 +45,7 @@ fn test_format_if_else() {
 
 #[test]
 fn test_format_loops() {
-    assert_formatted(
-        "while true{break}",
-        "while true {\n    break\n}\n",
-    );
+    assert_formatted("while true{break}", "while true {\n    break\n}\n");
     assert_formatted(
         "for i in 0..10{continue}",
         "for i in 0..10 {\n    continue\n}\n",
@@ -102,10 +90,7 @@ fn test_format_try_catch() {
 
 #[test]
 fn test_format_comments_before() {
-    assert_formatted(
-        "// A comment\nlet x = 1",
-        "// A comment\nlet x = 1\n",
-    );
+    assert_formatted("// A comment\nlet x = 1", "// A comment\nlet x = 1\n");
     assert_formatted(
         "/* Block comment */\nconst x = 2",
         "/* Block comment */\nconst x = 2\n",
@@ -114,10 +99,7 @@ fn test_format_comments_before() {
 
 #[test]
 fn test_format_comments_trailing() {
-    assert_formatted(
-        "let x = 1 // comment",
-        "let x = 1 // comment\n",
-    );
+    assert_formatted("let x = 1 // comment", "let x = 1 // comment\n");
 }
 
 #[test]

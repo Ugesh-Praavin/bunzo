@@ -16,7 +16,7 @@ fn test_cli_fmt_in_place_and_check() {
     let check_args = make_args(&["bzc", "fmt", file_path.to_str().unwrap(), "--check"]);
     let check_res = cli::run(&check_args);
     assert!(check_res.is_err());
-    assert_eq!(check_res.unwrap_err(), "Formatting required");
+    assert_eq!(check_res.unwrap_err().to_string(), "Formatting required");
 
     // 2. Format in-place
     let fmt_args = make_args(&["bzc", "fmt", file_path.to_str().unwrap()]);

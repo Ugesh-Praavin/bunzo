@@ -7,8 +7,8 @@
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
-    if let Err(message) = bzc::cli::run(&args) {
-        eprintln!("{message}");
-        std::process::exit(1);
+    if let Err(err) = bzc::cli::run(&args) {
+        eprintln!("{err}");
+        std::process::exit(err.exit_code());
     }
 }

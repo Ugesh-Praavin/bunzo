@@ -4,8 +4,8 @@ use crate::ast::{
     BinaryOperator, Expression, MatchArm, MatchPattern, Parameter, Program, Statement,
     UnaryOperator, Visibility,
 };
-use crate::lexer::{Token, TokenKind};
 use crate::formatter::style::Config;
+use crate::lexer::{Token, TokenKind};
 
 #[derive(Debug, Clone)]
 pub struct Comment {
@@ -191,7 +191,8 @@ impl<'a> Formatter<'a> {
             return;
         }
         if self.line_start {
-            self.output.push_str(&" ".repeat(self.indent_level * self.config.indent));
+            self.output
+                .push_str(&" ".repeat(self.indent_level * self.config.indent));
             self.line_start = false;
         }
         self.output.push_str(s);
@@ -230,16 +231,13 @@ impl<'a> Formatter<'a> {
     }
 
     fn print_trailing_comment(&mut self, line: usize) {
-        while self.comment_idx < self.comments.len() {
+        if self.comment_idx < self.comments.len() {
             let comment = &self.comments[self.comment_idx];
             if comment.line == line {
                 let text = comment.text.clone();
                 self.write_space();
                 self.write(&text);
                 self.comment_idx += 1;
-                break;
-            } else {
-                break;
             }
         }
     }
@@ -316,7 +314,9 @@ impl<'a> Formatter<'a> {
                 }
                 *line
             }
-            Statement::FunctionDeclaration { line, is_abstract, .. } => {
+            Statement::FunctionDeclaration {
+                line, is_abstract, ..
+            } => {
                 if *is_abstract {
                     *line
                 } else {
@@ -396,13 +396,17 @@ impl<'a> Formatter<'a> {
 
     fn format_statement(&mut self, stmt: &Statement) {
         match stmt {
-            Statement::LetDeclaration { name, initializer, .. } => {
+            Statement::LetDeclaration {
+                name, initializer, ..
+            } => {
                 self.write("let ");
                 self.write(name);
                 self.write(" = ");
                 self.format_expression(initializer);
             }
-            Statement::ConstDeclaration { name, initializer, .. } => {
+            Statement::ConstDeclaration {
+                name, initializer, ..
+            } => {
                 self.write("const ");
                 self.write(name);
                 self.write(" = ");
@@ -513,7 +517,9 @@ impl<'a> Formatter<'a> {
             Statement::ContinueStatement { .. } => {
                 self.write("continue");
             }
-            Statement::StructDeclaration { name, fields, line, .. } => {
+            Statement::StructDeclaration {
+                name, fields, line, ..
+            } => {
                 self.write("struct ");
                 self.write(name);
                 self.write(" {");
@@ -640,9 +646,7 @@ impl<'a> Formatter<'a> {
                 }
             }
             Statement::ExportDeclaration {
-                name,
-                declaration,
-                ..
+                name, declaration, ..
             } => {
                 self.write("export ");
                 if let Some(decl) = declaration {
@@ -800,9 +804,7 @@ impl<'a> Formatter<'a> {
                 self.write("super");
             }
             Expression::UnaryOp {
-                operator,
-                operand,
-                ..
+                operator, operand, ..
             } => {
                 match operator {
                     UnaryOperator::Negate => self.write("-"),
@@ -843,9 +845,7 @@ impl<'a> Formatter<'a> {
                 self.write(")");
             }
             Expression::Call {
-                callee,
-                arguments,
-                ..
+                callee, arguments, ..
             } => {
                 self.format_expression(callee);
                 self.write("(");

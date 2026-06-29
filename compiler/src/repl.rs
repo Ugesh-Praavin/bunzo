@@ -1,9 +1,9 @@
-use std::io::{self, Write};
 use crate::lexer::tokenize;
 use crate::parser::parse;
+use crate::runtime::{Interpreter, value::RuntimeValue};
 use crate::semantic::analyze;
 use crate::typechecker::check as typecheck;
-use crate::runtime::{Interpreter, value::RuntimeValue};
+use std::io::{self, Write};
 
 /// Starts the Bunzo interactive REPL.
 pub fn run() -> Result<(), String> {
@@ -154,7 +154,9 @@ mod tests {
             let new_statements = &program.statements[history_statement_count..];
             let mut last_val = None;
             for stmt in new_statements {
-                let res = interpreter.interpret_statement(stmt).map_err(|e| format!("{:?}", e))?;
+                let res = interpreter
+                    .interpret_statement(stmt)
+                    .map_err(|e| format!("{:?}", e))?;
                 if let Some(val) = res {
                     if val != RuntimeValue::Null {
                         last_val = Some(format!("{}", val));

@@ -25,8 +25,8 @@ version = \"0.1.0\"
                 .map_err(|e| format!("Failed to create bunzo.toml: {}", e))?;
         }
 
-        let content = fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read bunzo.toml: {}", e))?;
+        let content =
+            fs::read_to_string(path).map_err(|e| format!("Failed to read bunzo.toml: {}", e))?;
 
         Self::parse(&content)
     }
@@ -81,14 +81,14 @@ version = \"0.1.0\"
         content.push_str("[package]\n");
         content.push_str(&format!("name = \"{}\"\n\n", self.name));
         content.push_str("[dependencies]\n");
-        
+
         let mut sorted_deps: Vec<(&String, &String)> = self.dependencies.iter().collect();
         sorted_deps.sort_by(|a, b| a.0.cmp(b.0));
-        
+
         for (key, val) in sorted_deps {
             content.push_str(&format!("{} = \"{}\"\n", key, val));
         }
-        
+
         fs::write(path, content).map_err(|e| format!("Failed to write bunzo.toml: {}", e))
     }
 }

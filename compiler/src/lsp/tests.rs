@@ -1,4 +1,4 @@
-use crate::lsp::handlers::{compile_and_get_diagnostics, handle_hover, handle_definition};
+use crate::lsp::handlers::{compile_and_get_diagnostics, handle_definition, handle_hover};
 use crate::lsp::protocol::Request;
 use std::collections::HashMap;
 
@@ -10,7 +10,11 @@ const y = 3.14
 print(x)
 ";
     let diags = compile_and_get_diagnostics(code);
-    assert!(diags.is_empty(), "Expected no diagnostics for valid code, found: {:?}", diags);
+    assert!(
+        diags.is_empty(),
+        "Expected no diagnostics for valid code, found: {:?}",
+        diags
+    );
 }
 
 #[test]
@@ -38,7 +42,7 @@ x = \"hello\"
 #[test]
 fn test_lsp_hover() {
     let code = "let my_var = 100\nprint(my_var)";
-    
+
     // Hover over my_var definition: line 0, char 4 (which is "my_var")
     let hover_def = handle_hover(code, 0, 4).unwrap();
     assert!(hover_def.contents.value.contains("let my_var"));
@@ -52,7 +56,7 @@ fn test_lsp_hover() {
 fn test_lsp_definition() {
     let code = "let my_var = 100\nprint(my_var)";
     let uri = "file:///test.bz";
-    
+
     // Go to definition of my_var in print(my_var): line 1, char 6
     let loc = handle_definition(uri, code, 1, 6).unwrap();
     assert_eq!(loc.uri, uri);
@@ -65,7 +69,7 @@ fn test_lsp_definition() {
 fn test_lsp_jsonrpc_initialize() {
     let req_str = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
     let req: Request = serde_json::from_str(req_str).unwrap();
-    
+
     let mut docs = HashMap::new();
     let mut output = Vec::new();
     super::handle_request(&req, &mut output, &mut docs).unwrap();

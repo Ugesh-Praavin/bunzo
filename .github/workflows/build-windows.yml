@@ -18,7 +18,7 @@ jobs:
         shell: pwsh
         run: |
           mkdir release
-          copy target/release/bunzo.exe release/
+          copy target/release/bzc.exe release/
           Copy-Item -Path runtime -Destination release/runtime -Recurse
           Compress-Archive -Path release/* -DestinationPath bunzo-windows-x86_64.zip
       - uses: actions/upload-artifact@v4

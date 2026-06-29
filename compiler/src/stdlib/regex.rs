@@ -4,9 +4,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use super::{make_builtin, module_map};
 use crate::diagnostics::CompilerError;
 use crate::runtime::value::RuntimeValue;
-use super::{make_builtin, module_map};
 
 // A simple recursive regex matching engine for standard library-like pattern matching.
 // Supports: `.` (any char), `*` (zero or more), `^` (start), `$` (end).
@@ -64,7 +64,7 @@ fn is_match(pattern: &str, text: &str) -> bool {
 fn find_match(pattern: &str, text: &str) -> Option<(usize, usize)> {
     let re: Vec<char> = pattern.chars().collect();
     let txt: Vec<char> = text.chars().collect();
-    
+
     // We want to find the first matching slice.
     // Try matching from every starting index.
     for i in 0..=txt.len() {
@@ -72,8 +72,12 @@ fn find_match(pattern: &str, text: &str) -> Option<(usize, usize)> {
         if re.first() == Some(&'^') && i > 0 {
             break;
         }
-        let re_slice = if re.first() == Some(&'^') { &re[1..] } else { &re };
-        
+        let re_slice = if re.first() == Some(&'^') {
+            &re[1..]
+        } else {
+            &re
+        };
+
         // Find how many characters match. We search for the shortest/longest match.
         // Let's do greedy matching (longest possible match).
         let mut len = txt.len() - i;
@@ -97,19 +101,37 @@ pub fn build() -> RuntimeValue {
         "is_match".to_string(),
         make_builtin("regex.is_match", |args, l, c| {
             if args.len() != 2 {
-                return Err(CompilerError::ArityMismatch { name: "regex.is_match".into(), expected: 2, found: args.len(), line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "regex.is_match".into(),
+                    expected: 2,
+                    found: args.len(),
+                    line: l,
+                    column: c,
+                });
             }
             if let (RuntimeValue::String(pat), RuntimeValue::String(txt)) = (&args[0], &args[1]) {
                 return Ok(RuntimeValue::Boolean(is_match(pat, txt)));
             }
-            Err(CompilerError::TypeMismatch { operation: "regex.is_match".into(), expected: "String and String".into(), found: format!("{}, {}", args[0].type_name(), args[1].type_name()), line: l, column: c })
+            Err(CompilerError::TypeMismatch {
+                operation: "regex.is_match".into(),
+                expected: "String and String".into(),
+                found: format!("{}, {}", args[0].type_name(), args[1].type_name()),
+                line: l,
+                column: c,
+            })
         }),
     );
     map.insert(
         "match".to_string(),
         make_builtin("regex.match", |args, l, c| {
             if args.len() != 2 {
-                return Err(CompilerError::ArityMismatch { name: "regex.match".into(), expected: 2, found: args.len(), line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "regex.match".into(),
+                    expected: 2,
+                    found: args.len(),
+                    line: l,
+                    column: c,
+                });
             }
             if let (RuntimeValue::String(pat), RuntimeValue::String(txt)) = (&args[0], &args[1]) {
                 if let Some((start, end)) = find_match(pat, txt) {
@@ -117,14 +139,26 @@ pub fn build() -> RuntimeValue {
                 }
                 return Ok(RuntimeValue::Null);
             }
-            Err(CompilerError::TypeMismatch { operation: "regex.match".into(), expected: "String and String".into(), found: format!("{}, {}", args[0].type_name(), args[1].type_name()), line: l, column: c })
+            Err(CompilerError::TypeMismatch {
+                operation: "regex.match".into(),
+                expected: "String and String".into(),
+                found: format!("{}, {}", args[0].type_name(), args[1].type_name()),
+                line: l,
+                column: c,
+            })
         }),
     );
     map.insert(
         "find".to_string(),
         make_builtin("regex.find", |args, l, c| {
             if args.len() != 2 {
-                return Err(CompilerError::ArityMismatch { name: "regex.find".into(), expected: 2, found: args.len(), line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "regex.find".into(),
+                    expected: 2,
+                    found: args.len(),
+                    line: l,
+                    column: c,
+                });
             }
             if let (RuntimeValue::String(pat), RuntimeValue::String(txt)) = (&args[0], &args[1]) {
                 if let Some((start, end)) = find_match(pat, txt) {
@@ -132,14 +166,26 @@ pub fn build() -> RuntimeValue {
                 }
                 return Ok(RuntimeValue::Null);
             }
-            Err(CompilerError::TypeMismatch { operation: "regex.find".into(), expected: "String and String".into(), found: format!("{}, {}", args[0].type_name(), args[1].type_name()), line: l, column: c })
+            Err(CompilerError::TypeMismatch {
+                operation: "regex.find".into(),
+                expected: "String and String".into(),
+                found: format!("{}, {}", args[0].type_name(), args[1].type_name()),
+                line: l,
+                column: c,
+            })
         }),
     );
     map.insert(
         "search".to_string(),
         make_builtin("regex.search", |args, l, c| {
             if args.len() != 2 {
-                return Err(CompilerError::ArityMismatch { name: "regex.search".into(), expected: 2, found: args.len(), line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "regex.search".into(),
+                    expected: 2,
+                    found: args.len(),
+                    line: l,
+                    column: c,
+                });
             }
             if let (RuntimeValue::String(pat), RuntimeValue::String(txt)) = (&args[0], &args[1]) {
                 if let Some((start, _)) = find_match(pat, txt) {
@@ -147,14 +193,26 @@ pub fn build() -> RuntimeValue {
                 }
                 return Ok(RuntimeValue::Integer(-1));
             }
-            Err(CompilerError::TypeMismatch { operation: "regex.search".into(), expected: "String and String".into(), found: format!("{}, {}", args[0].type_name(), args[1].type_name()), line: l, column: c })
+            Err(CompilerError::TypeMismatch {
+                operation: "regex.search".into(),
+                expected: "String and String".into(),
+                found: format!("{}, {}", args[0].type_name(), args[1].type_name()),
+                line: l,
+                column: c,
+            })
         }),
     );
     map.insert(
         "find_all".to_string(),
         make_builtin("regex.find_all", |args, l, c| {
             if args.len() != 2 {
-                return Err(CompilerError::ArityMismatch { name: "regex.find_all".into(), expected: 2, found: args.len(), line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "regex.find_all".into(),
+                    expected: 2,
+                    found: args.len(),
+                    line: l,
+                    column: c,
+                });
             }
             if let (RuntimeValue::String(pat), RuntimeValue::String(txt)) = (&args[0], &args[1]) {
                 let mut matches = Vec::new();
@@ -170,16 +228,33 @@ pub fn build() -> RuntimeValue {
                 }
                 return Ok(RuntimeValue::Array(Rc::new(RefCell::new(matches))));
             }
-            Err(CompilerError::TypeMismatch { operation: "regex.find_all".into(), expected: "String and String".into(), found: format!("{}, {}", args[0].type_name(), args[1].type_name()), line: l, column: c })
+            Err(CompilerError::TypeMismatch {
+                operation: "regex.find_all".into(),
+                expected: "String and String".into(),
+                found: format!("{}, {}", args[0].type_name(), args[1].type_name()),
+                line: l,
+                column: c,
+            })
         }),
     );
     map.insert(
         "replace".to_string(),
         make_builtin("regex.replace", |args, l, c| {
             if args.len() != 3 {
-                return Err(CompilerError::ArityMismatch { name: "regex.replace".into(), expected: 3, found: args.len(), line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "regex.replace".into(),
+                    expected: 3,
+                    found: args.len(),
+                    line: l,
+                    column: c,
+                });
             }
-            if let (RuntimeValue::String(pat), RuntimeValue::String(txt), RuntimeValue::String(rep)) = (&args[0], &args[1], &args[2]) {
+            if let (
+                RuntimeValue::String(pat),
+                RuntimeValue::String(txt),
+                RuntimeValue::String(rep),
+            ) = (&args[0], &args[1], &args[2])
+            {
                 if let Some((start, end)) = find_match(pat, txt) {
                     let mut result = txt[..start].to_string();
                     result.push_str(rep);
@@ -188,14 +263,31 @@ pub fn build() -> RuntimeValue {
                 }
                 return Ok(RuntimeValue::String(txt.clone()));
             }
-            Err(CompilerError::TypeMismatch { operation: "regex.replace".into(), expected: "String, String, and String".into(), found: format!("{}, {}, {}", args[0].type_name(), args[1].type_name(), args[2].type_name()), line: l, column: c })
+            Err(CompilerError::TypeMismatch {
+                operation: "regex.replace".into(),
+                expected: "String, String, and String".into(),
+                found: format!(
+                    "{}, {}, {}",
+                    args[0].type_name(),
+                    args[1].type_name(),
+                    args[2].type_name()
+                ),
+                line: l,
+                column: c,
+            })
         }),
     );
     map.insert(
         "split".to_string(),
         make_builtin("regex.split", |args, l, c| {
             if args.len() != 2 {
-                return Err(CompilerError::ArityMismatch { name: "regex.split".into(), expected: 2, found: args.len(), line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "regex.split".into(),
+                    expected: 2,
+                    found: args.len(),
+                    line: l,
+                    column: c,
+                });
             }
             if let (RuntimeValue::String(pat), RuntimeValue::String(txt)) = (&args[0], &args[1]) {
                 let mut parts = Vec::new();
@@ -214,7 +306,13 @@ pub fn build() -> RuntimeValue {
                 }
                 return Ok(RuntimeValue::Array(Rc::new(RefCell::new(parts))));
             }
-            Err(CompilerError::TypeMismatch { operation: "regex.split".into(), expected: "String and String".into(), found: format!("{}, {}", args[0].type_name(), args[1].type_name()), line: l, column: c })
+            Err(CompilerError::TypeMismatch {
+                operation: "regex.split".into(),
+                expected: "String and String".into(),
+                found: format!("{}, {}", args[0].type_name(), args[1].type_name()),
+                line: l,
+                column: c,
+            })
         }),
     );
     module_map(map)

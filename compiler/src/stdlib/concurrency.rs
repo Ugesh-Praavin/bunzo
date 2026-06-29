@@ -4,11 +4,16 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use super::{make_builtin, module_map};
 use crate::diagnostics::CompilerError;
 use crate::runtime::value::RuntimeValue;
-use super::{make_builtin, module_map};
 
-fn to_map(val: &RuntimeValue, op: &str, l: usize, c: usize) -> Result<Rc<RefCell<HashMap<String, RuntimeValue>>>, CompilerError> {
+fn to_map(
+    val: &RuntimeValue,
+    op: &str,
+    l: usize,
+    c: usize,
+) -> Result<Rc<RefCell<HashMap<String, RuntimeValue>>>, CompilerError> {
     if let RuntimeValue::Map(m) = val {
         return Ok(m.clone());
     }
@@ -29,7 +34,13 @@ pub fn build_thread() -> RuntimeValue {
         "spawn".to_string(),
         make_builtin("thread.spawn", |args, l, c| {
             if args.is_empty() {
-                return Err(CompilerError::ArityMismatch { name: "thread.spawn".into(), expected: 1, found: 0, line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "thread.spawn".into(),
+                    expected: 1,
+                    found: 0,
+                    line: l,
+                    column: c,
+                });
             }
             // Execute or simulate execution, returns a thread ID.
             Ok(RuntimeValue::Integer(1))
@@ -39,7 +50,13 @@ pub fn build_thread() -> RuntimeValue {
         "join".to_string(),
         make_builtin("thread.join", |args, l, c| {
             if args.is_empty() {
-                return Err(CompilerError::ArityMismatch { name: "thread.join".into(), expected: 1, found: 0, line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "thread.join".into(),
+                    expected: 1,
+                    found: 0,
+                    line: l,
+                    column: c,
+                });
             }
             Ok(RuntimeValue::Null)
         }),
@@ -65,11 +82,22 @@ pub fn build_mutex() -> RuntimeValue {
         "lock".to_string(),
         make_builtin("mutex.lock", |args, l, c| {
             if args.is_empty() {
-                return Err(CompilerError::ArityMismatch { name: "mutex.lock".into(), expected: 1, found: 0, line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "mutex.lock".into(),
+                    expected: 1,
+                    found: 0,
+                    line: l,
+                    column: c,
+                });
             }
             let m = to_map(&args[0], "mutex.lock", l, c)?;
-            m.borrow_mut().insert("locked".to_string(), RuntimeValue::Boolean(true));
-            let val = m.borrow().get("value").cloned().unwrap_or(RuntimeValue::Null);
+            m.borrow_mut()
+                .insert("locked".to_string(), RuntimeValue::Boolean(true));
+            let val = m
+                .borrow()
+                .get("value")
+                .cloned()
+                .unwrap_or(RuntimeValue::Null);
             Ok(val)
         }),
     );
@@ -77,10 +105,17 @@ pub fn build_mutex() -> RuntimeValue {
         "unlock".to_string(),
         make_builtin("mutex.unlock", |args, l, c| {
             if args.is_empty() {
-                return Err(CompilerError::ArityMismatch { name: "mutex.unlock".into(), expected: 1, found: 0, line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "mutex.unlock".into(),
+                    expected: 1,
+                    found: 0,
+                    line: l,
+                    column: c,
+                });
             }
             let m = to_map(&args[0], "mutex.unlock", l, c)?;
-            m.borrow_mut().insert("locked".to_string(), RuntimeValue::Boolean(false));
+            m.borrow_mut()
+                .insert("locked".to_string(), RuntimeValue::Boolean(false));
             Ok(RuntimeValue::Null)
         }),
     );
@@ -106,7 +141,13 @@ pub fn build_rwlock() -> RuntimeValue {
         "read".to_string(),
         make_builtin("rwlock.read", |args, l, c| {
             if args.is_empty() {
-                return Err(CompilerError::ArityMismatch { name: "rwlock.read".into(), expected: 1, found: 0, line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "rwlock.read".into(),
+                    expected: 1,
+                    found: 0,
+                    line: l,
+                    column: c,
+                });
             }
             let lock = to_map(&args[0], "rwlock.read", l, c)?;
             let mut b = lock.borrow_mut();
@@ -126,7 +167,13 @@ pub fn build_rwlock() -> RuntimeValue {
         "write".to_string(),
         make_builtin("rwlock.write", |args, l, c| {
             if args.is_empty() {
-                return Err(CompilerError::ArityMismatch { name: "rwlock.write".into(), expected: 1, found: 0, line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "rwlock.write".into(),
+                    expected: 1,
+                    found: 0,
+                    line: l,
+                    column: c,
+                });
             }
             let lock = to_map(&args[0], "rwlock.write", l, c)?;
             let mut b = lock.borrow_mut();
@@ -146,7 +193,10 @@ pub fn build_channel() -> RuntimeValue {
         "new".to_string(),
         make_builtin("channel.new", |_args, _l, _c| {
             let mut fields = HashMap::new();
-            fields.insert("queue".to_string(), RuntimeValue::Array(Rc::new(RefCell::new(Vec::new()))));
+            fields.insert(
+                "queue".to_string(),
+                RuntimeValue::Array(Rc::new(RefCell::new(Vec::new()))),
+            );
             Ok(RuntimeValue::Map(Rc::new(RefCell::new(fields))))
         }),
     );
@@ -154,7 +204,13 @@ pub fn build_channel() -> RuntimeValue {
         "send".to_string(),
         make_builtin("channel.send", |args, l, c| {
             if args.len() != 2 {
-                return Err(CompilerError::ArityMismatch { name: "channel.send".into(), expected: 2, found: args.len(), line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "channel.send".into(),
+                    expected: 2,
+                    found: args.len(),
+                    line: l,
+                    column: c,
+                });
             }
             let chan = to_map(&args[0], "channel.send", l, c)?;
             let b_chan = chan.borrow();
@@ -168,7 +224,13 @@ pub fn build_channel() -> RuntimeValue {
         "recv".to_string(),
         make_builtin("channel.recv", |args, l, c| {
             if args.is_empty() {
-                return Err(CompilerError::ArityMismatch { name: "channel.recv".into(), expected: 1, found: 0, line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "channel.recv".into(),
+                    expected: 1,
+                    found: 0,
+                    line: l,
+                    column: c,
+                });
             }
             let chan = to_map(&args[0], "channel.recv", l, c)?;
             let b_chan = chan.borrow();
@@ -201,10 +263,20 @@ pub fn build_atomic() -> RuntimeValue {
         "load".to_string(),
         make_builtin("atomic.load", |args, l, c| {
             if args.is_empty() {
-                return Err(CompilerError::ArityMismatch { name: "atomic.load".into(), expected: 1, found: 0, line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "atomic.load".into(),
+                    expected: 1,
+                    found: 0,
+                    line: l,
+                    column: c,
+                });
             }
             let a = to_map(&args[0], "atomic.load", l, c)?;
-            let val = a.borrow().get("value").cloned().unwrap_or(RuntimeValue::Null);
+            let val = a
+                .borrow()
+                .get("value")
+                .cloned()
+                .unwrap_or(RuntimeValue::Null);
             Ok(val)
         }),
     );
@@ -212,7 +284,13 @@ pub fn build_atomic() -> RuntimeValue {
         "store".to_string(),
         make_builtin("atomic.store", |args, l, c| {
             if args.len() != 2 {
-                return Err(CompilerError::ArityMismatch { name: "atomic.store".into(), expected: 2, found: args.len(), line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "atomic.store".into(),
+                    expected: 2,
+                    found: args.len(),
+                    line: l,
+                    column: c,
+                });
             }
             let a = to_map(&args[0], "atomic.store", l, c)?;
             a.borrow_mut().insert("value".to_string(), args[1].clone());
@@ -223,16 +301,30 @@ pub fn build_atomic() -> RuntimeValue {
         "add".to_string(),
         make_builtin("atomic.add", |args, l, c| {
             if args.len() != 2 {
-                return Err(CompilerError::ArityMismatch { name: "atomic.add".into(), expected: 2, found: args.len(), line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "atomic.add".into(),
+                    expected: 2,
+                    found: args.len(),
+                    line: l,
+                    column: c,
+                });
             }
             let a = to_map(&args[0], "atomic.add", l, c)?;
             let mut b = a.borrow_mut();
-            if let (Some(RuntimeValue::Integer(curr)), RuntimeValue::Integer(val)) = (b.get("value"), &args[1]) {
+            if let (Some(RuntimeValue::Integer(curr)), RuntimeValue::Integer(val)) =
+                (b.get("value"), &args[1])
+            {
                 let new_val = *curr + *val;
                 b.insert("value".to_string(), RuntimeValue::Integer(new_val));
                 return Ok(RuntimeValue::Integer(new_val));
             }
-            Err(CompilerError::TypeMismatch { operation: "atomic.add".into(), expected: "Integer".into(), found: args[1].type_name().to_string(), line: l, column: c })
+            Err(CompilerError::TypeMismatch {
+                operation: "atomic.add".into(),
+                expected: "Integer".into(),
+                found: args[1].type_name().to_string(),
+                line: l,
+                column: c,
+            })
         }),
     );
     module_map(map)

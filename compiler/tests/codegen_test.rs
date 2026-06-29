@@ -262,12 +262,17 @@ int main() {
     let output = Command::new(cc).args(&args).output().unwrap();
     if !output.status.success() {
         let _ = fs::remove_file(&temp_file_c);
-        panic!("Compilation of GC test failed: {}", String::from_utf8_lossy(&output.stderr));
+        panic!(
+            "Compilation of GC test failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     let _ = fs::remove_file(&temp_file_c);
 
-    let output_run = Command::new(temp_file_exe.to_str().unwrap()).output().unwrap();
+    let output_run = Command::new(temp_file_exe.to_str().unwrap())
+        .output()
+        .unwrap();
     let _ = fs::remove_file(&temp_file_exe);
 
     if !output_run.status.success() {

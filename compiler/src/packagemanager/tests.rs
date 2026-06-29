@@ -54,7 +54,7 @@ fn test_save_manifest() {
 fn test_module_resolution_order() {
     // Create mock modules directory structure
     let _ = fs::create_dir_all("modules/mock_package");
-    
+
     // 1. Mock local file
     fs::write("mock_package.bz", "print(\"local\")").unwrap();
     let (path, content) = resolve_module("mock_package", None, 1, 1).unwrap();

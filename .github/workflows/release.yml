@@ -21,7 +21,7 @@ jobs:
       - name: Package Linux Tarball
         run: |
           mkdir -p release
-          cp target/release/bunzo release/
+          cp target/release/bzc release/
           cp -r runtime release/
           tar -czf bunzo-linux-x86_64.tar.gz -C release .
 
@@ -47,7 +47,7 @@ jobs:
         shell: pwsh
         run: |
           mkdir release
-          copy target/release/bunzo.exe release/
+          copy target/release/bzc.exe release/
           Copy-Item -Path runtime -Destination release/runtime -Recurse
           Compress-Archive -Path release/* -DestinationPath bunzo-windows-x86_64.zip
 

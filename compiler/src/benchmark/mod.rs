@@ -49,7 +49,11 @@ pub fn run_benchmark(
         return Err(format!("Error: File not found: {}", file_path));
     }
 
-    let program_name = path.file_name().and_then(|s| s.to_str()).unwrap_or(file_path).to_string();
+    let program_name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(file_path)
+        .to_string();
 
     // 1. Measure Compilation Phase Timings
     eprintln!("Benchmarking compiler phases for {}...", program_name);
@@ -109,8 +113,7 @@ pub fn run_benchmark(
     // Output C code location or temp C file
     let file_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("out");
     let c_file_path = format!("{}.c", file_stem);
-    fs::write(&c_file_path, &c_code)
-        .map_err(|e| format!("Error writing temporary C file: {e}"))?;
+    fs::write(&c_file_path, &c_code).map_err(|e| format!("Error writing temporary C file: {e}"))?;
 
     let c_size_bytes = fs::metadata(&c_file_path).map(|m| m.len()).unwrap_or(0);
 
@@ -134,9 +137,45 @@ pub fn run_benchmark(
         let runtime_include = runtime_dir.to_str().ok_or("Invalid runtime path")?;
 
         let compilers = [
-            ("clang", vec!["-O2", "-o", &exe_path, &c_file_path, runtime_c_path.to_str().unwrap(), "-I", runtime_include, "-lm"]),
-            ("gcc", vec!["-O2", "-o", &exe_path, &c_file_path, runtime_c_path.to_str().unwrap(), "-I", runtime_include, "-lm"]),
-            ("cc", vec!["-O2", "-o", &exe_path, &c_file_path, runtime_c_path.to_str().unwrap(), "-I", runtime_include, "-lm"]),
+            (
+                "clang",
+                vec![
+                    "-O2",
+                    "-o",
+                    &exe_path,
+                    &c_file_path,
+                    runtime_c_path.to_str().unwrap(),
+                    "-I",
+                    runtime_include,
+                    "-lm",
+                ],
+            ),
+            (
+                "gcc",
+                vec![
+                    "-O2",
+                    "-o",
+                    &exe_path,
+                    &c_file_path,
+                    runtime_c_path.to_str().unwrap(),
+                    "-I",
+                    runtime_include,
+                    "-lm",
+                ],
+            ),
+            (
+                "cc",
+                vec![
+                    "-O2",
+                    "-o",
+                    &exe_path,
+                    &c_file_path,
+                    runtime_c_path.to_str().unwrap(),
+                    "-I",
+                    runtime_include,
+                    "-lm",
+                ],
+            ),
         ];
 
         for (cc, args) in &compilers {
@@ -179,7 +218,9 @@ pub fn run_benchmark(
             }
             let _ = fs::remove_file(&exe_path);
         } else {
-            eprintln!("Warning: Failed to compile generated C code; skipping execution benchmarking.");
+            eprintln!(
+                "Warning: Failed to compile generated C code; skipping execution benchmarking."
+            );
         }
     } else if !emit_c {
         // Just emit-c is false, clean up temp C file.
@@ -201,7 +242,8 @@ pub fn run_benchmark(
     // 4. Save report in historical benchmarks directory
     let results_dir = Path::new("benchmarks/results");
     if !results_dir.exists() {
-        fs::create_dir_all(results_dir).map_err(|e| format!("Error creating results directory: {e}"))?;
+        fs::create_dir_all(results_dir)
+            .map_err(|e| format!("Error creating results directory: {e}"))?;
     }
     let report_filename = format!("{}.json", format_date_timestamp());
     let report_filepath = results_dir.join(&report_filename);
@@ -228,7 +270,10 @@ fn format_current_timestamp() -> String {
     // Basic local/UTC time format wrapper using std. Since chrono is not in workspace,
     // we fallback to standard system time or simple formatted placeholder.
     // To be deterministic and avoid dependencies, we format the time.
-    if std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).is_ok() {
+    if std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .is_ok()
+    {
         format!("2026-06-23T11:45:00Z") // Placeholder timestamp for reports
     } else {
         "2026-06-23T11:45:00Z".to_string()
@@ -455,23 +500,57 @@ fn print_report_card(report: &BenchmarkReport, prev_report: Option<&BenchmarkRep
     println!("==============================");
     println!("");
     println!("Program:        {}", report.program);
-    println!("C Source Size:  {:.1} KB", (report.c_size_bytes as f64) / 1024.0);
+    println!(
+        "C Source Size:  {:.1} KB",
+        (report.c_size_bytes as f64) / 1024.0
+    );
     if report.exe_size_bytes > 0 {
         println!("Executable:     {} KB", report.exe_size_bytes / 1024);
     }
-    println!("Optimization:   {}", if report.optimization_enabled { "Enabled" } else { "Disabled" });
+    println!(
+        "Optimization:   {}",
+        if report.optimization_enabled {
+            "Enabled"
+        } else {
+            "Disabled"
+        }
+    );
     println!("Result:         PASS");
     println!("");
     println!("--- Compiler Phase Timings ---");
-    println!("Lexing:             {:>6.2} ms", report.compiler_timings.lexing_ms);
-    println!("Parsing:            {:>6.2} ms", report.compiler_timings.parsing_ms);
-    println!("Semantic:           {:>6.2} ms", report.compiler_timings.semantic_ms);
-    println!("Type Checking:      {:>6.2} ms", report.compiler_timings.type_checking_ms);
-    println!("IR Generation:      {:>6.2} ms", report.compiler_timings.ir_generation_ms);
-    println!("Optimization:       {:>6.2} ms", report.compiler_timings.optimization_ms);
-    println!("Code Generation:    {:>6.2} ms", report.compiler_timings.code_generation_ms);
+    println!(
+        "Lexing:             {:>6.2} ms",
+        report.compiler_timings.lexing_ms
+    );
+    println!(
+        "Parsing:            {:>6.2} ms",
+        report.compiler_timings.parsing_ms
+    );
+    println!(
+        "Semantic:           {:>6.2} ms",
+        report.compiler_timings.semantic_ms
+    );
+    println!(
+        "Type Checking:      {:>6.2} ms",
+        report.compiler_timings.type_checking_ms
+    );
+    println!(
+        "IR Generation:      {:>6.2} ms",
+        report.compiler_timings.ir_generation_ms
+    );
+    println!(
+        "Optimization:       {:>6.2} ms",
+        report.compiler_timings.optimization_ms
+    );
+    println!(
+        "Code Generation:    {:>6.2} ms",
+        report.compiler_timings.code_generation_ms
+    );
     println!("--------------------------------");
-    println!("Total Compile:      {:>6.2} ms", report.compiler_timings.total_ms);
+    println!(
+        "Total Compile:      {:>6.2} ms",
+        report.compiler_timings.total_ms
+    );
     println!("");
 
     if let Some(et) = &report.execution_timings {
@@ -494,7 +573,8 @@ fn print_report_card(report: &BenchmarkReport, prev_report: Option<&BenchmarkRep
             comp_pct
         );
 
-        if let (Some(curr_et), Some(prev_et)) = (&report.execution_timings, &prev.execution_timings) {
+        if let (Some(curr_et), Some(prev_et)) = (&report.execution_timings, &prev.execution_timings)
+        {
             let exec_diff = curr_et.average_ms - prev_et.average_ms;
             let exec_pct = (exec_diff / prev_et.average_ms) * 100.0;
             println!(

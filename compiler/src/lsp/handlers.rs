@@ -1,11 +1,11 @@
-use std::collections::HashMap;
-use crate::ast::{Expression, Program, Statement, MatchPattern, MatchArm};
+use super::protocol::{Diagnostic, Hover, Location, MarkupContent, Position, Range};
+use crate::ast::{Expression, MatchArm, MatchPattern, Program, Statement};
+use crate::diagnostics::CompilerError;
 use crate::lexer::tokenize;
 use crate::parser::parse;
 use crate::semantic::analyze;
 use crate::typechecker::check as typecheck;
-use crate::diagnostics::CompilerError;
-use super::protocol::{Diagnostic, Range, Position, Hover, MarkupContent, Location};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SymbolInfo {
@@ -40,15 +40,18 @@ impl<'a> SymbolFinder<'a> {
         let mut scopes = vec![HashMap::new()];
         let builtins = vec![
             "len", "type", "str", "to_int", "to_float", "input", "push", "pop", "keys", "values",
-            "contains", "split", "join", "map_fn", "map_set", "map_get", "channel", "send", "recv"
+            "contains", "split", "join", "map_fn", "map_set", "map_get", "channel", "send", "recv",
         ];
         for b in builtins {
-            scopes[0].insert(b.to_string(), SymbolInfo {
-                name: b.to_string(),
-                line: 0,
-                column: 0,
-                detail: format!("built-in function {}", b),
-            });
+            scopes[0].insert(
+                b.to_string(),
+                SymbolInfo {
+                    name: b.to_string(),
+                    line: 0,
+                    column: 0,
+                    detail: format!("built-in function {}", b),
+                },
+            );
         }
         SymbolFinder {
             target_line,
@@ -69,12 +72,15 @@ impl<'a> SymbolFinder<'a> {
 
     fn define(&mut self, name: String, line: usize, col: usize, detail: String) {
         if let Some(scope) = self.scopes.last_mut() {
-            scope.insert(name.clone(), SymbolInfo {
-                name,
-                line,
-                column: col,
-                detail,
-            });
+            scope.insert(
+                name.clone(),
+                SymbolInfo {
+                    name,
+                    line,
+                    column: col,
+                    detail,
+                },
+            );
         }
     }
 
@@ -88,7 +94,8 @@ impl<'a> SymbolFinder<'a> {
     }
 
     fn check_identifier(&mut self, name: &str, line: usize, col: usize) {
-        if self.target_line == line && self.target_col >= col && self.target_col < col + name.len() {
+        if self.target_line == line && self.target_col >= col && self.target_col < col + name.len()
+        {
             if let Some(info) = self.lookup(name) {
                 self.found_symbol = Some(info);
             }
@@ -137,13 +144,23 @@ impl<'a> SymbolFinder<'a> {
 
     fn walk_statement(&mut self, stmt: &Statement) {
         match stmt {
-            Statement::LetDeclaration { name, initializer, line, .. } => {
+            Statement::LetDeclaration {
+                name,
+                initializer,
+                line,
+                ..
+            } => {
                 self.walk_expression(initializer);
                 let col = find_identifier_column(self.text, *line, name);
                 self.define(name.clone(), *line, col, format!("let {}", name));
                 self.check_identifier(name, *line, col);
             }
-            Statement::ConstDeclaration { name, initializer, line, .. } => {
+            Statement::ConstDeclaration {
+                name,
+                initializer,
+                line,
+                ..
+            } => {
                 self.walk_expression(initializer);
                 let col = find_identifier_column(self.text, *line, name);
                 self.define(name.clone(), *line, col, format!("const {}", name));
@@ -155,7 +172,13 @@ impl<'a> SymbolFinder<'a> {
             Statement::ExpressionStatement { expression } => {
                 self.walk_expression(expression);
             }
-            Statement::FunctionDeclaration { name, params, body, line, .. } => {
+            Statement::FunctionDeclaration {
+                name,
+                params,
+                body,
+                line,
+                ..
+            } => {
                 let col = find_identifier_column(self.text, *line, name);
                 self.check_identifier(name, *line, col);
 
@@ -180,12 +203,19 @@ impl<'a> SymbolFinder<'a> {
                     self.walk_expression(expr);
                 }
             }
-            Statement::Assignment { name, value, line, .. } => {
+            Statement::Assignment {
+                name, value, line, ..
+            } => {
                 let col = find_identifier_column(self.text, *line, name);
                 self.check_identifier(name, *line, col);
                 self.walk_expression(value);
             }
-            Statement::IfStatement { condition, then_branch, else_branch, .. } => {
+            Statement::IfStatement {
+                condition,
+                then_branch,
+                else_branch,
+                ..
+            } => {
                 self.walk_expression(condition);
                 self.push_scope();
                 for s in then_branch {
@@ -200,7 +230,9 @@ impl<'a> SymbolFinder<'a> {
                     self.pop_scope();
                 }
             }
-            Statement::WhileStatement { condition, body, .. } => {
+            Statement::WhileStatement {
+                condition, body, ..
+            } => {
                 self.walk_expression(condition);
                 self.push_scope();
                 for s in body {
@@ -208,12 +240,24 @@ impl<'a> SymbolFinder<'a> {
                 }
                 self.pop_scope();
             }
-            Statement::ForStatement { variable, start, end, body, line, .. } => {
+            Statement::ForStatement {
+                variable,
+                start,
+                end,
+                body,
+                line,
+                ..
+            } => {
                 self.walk_expression(start);
                 self.walk_expression(end);
                 self.push_scope();
                 let col = find_identifier_column(self.text, *line, variable);
-                self.define(variable.clone(), *line, col, format!("for-loop variable {}", variable));
+                self.define(
+                    variable.clone(),
+                    *line,
+                    col,
+                    format!("for-loop variable {}", variable),
+                );
                 self.check_identifier(variable, *line, col);
                 for s in body {
                     self.walk_statement(s);
@@ -221,7 +265,9 @@ impl<'a> SymbolFinder<'a> {
                 self.pop_scope();
             }
             Statement::BreakStatement { .. } | Statement::ContinueStatement { .. } => {}
-            Statement::StructDeclaration { name, fields, line, .. } => {
+            Statement::StructDeclaration {
+                name, fields, line, ..
+            } => {
                 let col = find_identifier_column(self.text, *line, name);
                 self.check_identifier(name, *line, col);
                 for f in fields {
@@ -229,13 +275,24 @@ impl<'a> SymbolFinder<'a> {
                     self.check_identifier(&f.name, f.line, f_col);
                 }
             }
-            Statement::ClassDeclaration { name, fields, methods, line, .. } => {
+            Statement::ClassDeclaration {
+                name,
+                fields,
+                methods,
+                line,
+                ..
+            } => {
                 let col = find_identifier_column(self.text, *line, name);
                 self.check_identifier(name, *line, col);
                 self.push_scope();
                 for f in fields {
                     let f_col = find_identifier_column(self.text, f.line, &f.name);
-                    self.define(f.name.clone(), f.line, f_col, format!("field {}: {}", f.name, f.type_name));
+                    self.define(
+                        f.name.clone(),
+                        f.line,
+                        f_col,
+                        format!("field {}: {}", f.name, f.type_name),
+                    );
                     self.check_identifier(&f.name, f.line, f_col);
                 }
                 for m in methods {
@@ -243,13 +300,25 @@ impl<'a> SymbolFinder<'a> {
                 }
                 self.pop_scope();
             }
-            Statement::FieldAssignment { object, field, value, line, .. } => {
+            Statement::FieldAssignment {
+                object,
+                field,
+                value,
+                line,
+                ..
+            } => {
                 self.walk_expression(object);
                 let col = find_identifier_column(self.text, *line, field);
                 self.check_identifier(field, *line, col);
                 self.walk_expression(value);
             }
-            Statement::TryCatch { try_block, catch_var, catch_block, line, .. } => {
+            Statement::TryCatch {
+                try_block,
+                catch_var,
+                catch_block,
+                line,
+                ..
+            } => {
                 self.push_scope();
                 for s in try_block {
                     self.walk_statement(s);
@@ -258,7 +327,12 @@ impl<'a> SymbolFinder<'a> {
 
                 self.push_scope();
                 let col = find_identifier_column(self.text, *line, catch_var);
-                self.define(catch_var.clone(), *line, col, format!("exception {}", catch_var));
+                self.define(
+                    catch_var.clone(),
+                    *line,
+                    col,
+                    format!("exception {}", catch_var),
+                );
                 self.check_identifier(catch_var, *line, col);
                 for s in catch_block {
                     self.walk_statement(s);
@@ -287,7 +361,12 @@ impl<'a> SymbolFinder<'a> {
                     self.walk_match_arm(arm);
                 }
             }
-            Statement::InterfaceDeclaration { name, methods, line, .. } => {
+            Statement::InterfaceDeclaration {
+                name,
+                methods,
+                line,
+                ..
+            } => {
                 let col = find_identifier_column(self.text, *line, name);
                 self.check_identifier(name, *line, col);
                 for m in methods {
@@ -344,19 +423,31 @@ impl<'a> SymbolFinder<'a> {
             Expression::Grouping { expression, .. } => {
                 self.walk_expression(expression);
             }
-            Expression::Call { callee, arguments, .. } => {
+            Expression::Call {
+                callee, arguments, ..
+            } => {
                 self.walk_expression(callee);
                 for arg in arguments {
                     self.walk_expression(arg);
                 }
             }
-            Expression::StructLiteral { name, fields, line, column } => {
+            Expression::StructLiteral {
+                name,
+                fields,
+                line,
+                column,
+            } => {
                 self.check_identifier(name, *line, *column);
                 for (_, val) in fields {
                     self.walk_expression(val);
                 }
             }
-            Expression::FieldAccess { object, field, line, column } => {
+            Expression::FieldAccess {
+                object,
+                field,
+                line,
+                column,
+            } => {
                 self.walk_expression(object);
                 self.check_identifier(field, *line, *column);
             }
@@ -423,19 +514,22 @@ pub fn compile_and_get_diagnostics(text: &str) -> Vec<Diagnostic> {
 fn convert_error_to_diagnostic(err: CompilerError) -> Diagnostic {
     let msg = format!("{}", err);
     let (line, col) = err.location().unwrap_or((1, 1));
-    
+
     let start_pos = Position {
         line: (line as u32).saturating_sub(1),
         character: (col as u32).saturating_sub(1),
     };
-    
+
     let end_pos = Position {
         line: start_pos.line,
         character: start_pos.character + 1,
     };
 
     Diagnostic {
-        range: Range { start: start_pos, end: end_pos },
+        range: Range {
+            start: start_pos,
+            end: end_pos,
+        },
         severity: Some(1),
         message: msg,
     }
@@ -444,7 +538,7 @@ fn convert_error_to_diagnostic(err: CompilerError) -> Diagnostic {
 pub fn handle_hover(text: &str, line: u32, character: u32) -> Option<Hover> {
     let tokens = tokenize(text).ok()?;
     let program = parse(tokens).ok()?;
-    
+
     let target_line = (line as usize) + 1;
     let target_col = (character as usize) + 1;
 
@@ -466,7 +560,7 @@ pub fn handle_hover(text: &str, line: u32, character: u32) -> Option<Hover> {
 pub fn handle_definition(uri: &str, text: &str, line: u32, character: u32) -> Option<Location> {
     let tokens = tokenize(text).ok()?;
     let program = parse(tokens).ok()?;
-    
+
     let target_line = (line as usize) + 1;
     let target_col = (character as usize) + 1;
 
@@ -487,7 +581,10 @@ pub fn handle_definition(uri: &str, text: &str, line: u32, character: u32) -> Op
         };
         Some(Location {
             uri: uri.to_string(),
-            range: Range { start: start_pos, end: end_pos },
+            range: Range {
+                start: start_pos,
+                end: end_pos,
+            },
         })
     } else {
         None

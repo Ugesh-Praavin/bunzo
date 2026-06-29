@@ -461,7 +461,10 @@ pub fn generate(module: &IrModule) -> Result<String, CompilerError> {
     for name in &sorted_globals {
         let ty = global_vars.get(*name).unwrap();
         if is_pointer_type(ty) {
-            writer.line(format!("bunzo_gc_register_root((void**)&var_{});", escape_c_name(name)));
+            writer.line(format!(
+                "bunzo_gc_register_root((void**)&var_{});",
+                escape_c_name(name)
+            ));
         }
     }
     writer.line(format!("{}();", escape_c_name("__main__")));

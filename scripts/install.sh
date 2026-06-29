@@ -21,7 +21,7 @@ if ! command -v sudo &>/dev/null; then
 fi
 
 # Install
-sudo install -m 755 /tmp/bunzo-extract/bunzo "$INSTALL_DIR/bunzo"
+sudo install -m 755 /tmp/bunzo-extract/bzc "$INSTALL_DIR/bzc"
 sudo mkdir -p "$INSTALL_DIR/runtime"
 sudo cp -r /tmp/bunzo-extract/runtime/* "$INSTALL_DIR/runtime/"
 
@@ -29,10 +29,10 @@ sudo cp -r /tmp/bunzo-extract/runtime/* "$INSTALL_DIR/runtime/"
 rm -rf /tmp/bunzo.tar.gz /tmp/bunzo-extract
 
 # Verify
-if ! command -v bunzo &>/dev/null; then
+if ! command -v bzc &>/dev/null; then
     echo "Warning: installed but not found in PATH."
     echo "Add $INSTALL_DIR to your PATH manually."
     exit 1
 fi
 
-echo "Done! Run: bunzo --help"
+echo "Done! Run: bzc --help"

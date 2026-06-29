@@ -4,13 +4,13 @@ pub mod protocol;
 #[cfg(test)]
 pub mod tests;
 
+use serde_json::Value;
 use std::collections::HashMap;
 use std::io::{self, BufRead, Read, Write};
-use serde_json::Value;
 
 use protocol::{
-    Request, Response, Notification, InitializeResult, ServerCapabilities,
-    PublishDiagnosticsParams, HoverParams, DefinitionParams
+    DefinitionParams, HoverParams, InitializeResult, Notification, PublishDiagnosticsParams,
+    Request, Response, ServerCapabilities,
 };
 
 /// Runs the LSP server loop over stdin/stdout.
@@ -23,7 +23,7 @@ pub fn run() -> Result<(), String> {
 
     loop {
         let mut content_length = 0;
-        
+
         // Read headers
         loop {
             let mut line = String::new();
@@ -84,7 +84,9 @@ fn send_notification<W: Write>(writer: &mut W, notif: Notification) -> Result<()
 
 fn write_message<W: Write>(writer: &mut W, body: &str) -> Result<(), String> {
     let msg = format!("Content-Length: {}\r\n\r\n{}", body.len(), body);
-    writer.write_all(msg.as_bytes()).map_err(|e| e.to_string())?;
+    writer
+        .write_all(msg.as_bytes())
+        .map_err(|e| e.to_string())?;
     writer.flush().map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -116,7 +118,11 @@ fn handle_request<W: Write>(
             if let Some(params_val) = &req.params {
                 if let Ok(params) = serde_json::from_value::<HoverParams>(params_val.clone()) {
                     if let Some(doc_text) = documents.get(&params.text_document.uri) {
-                        if let Some(hover) = handlers::handle_hover(doc_text, params.position.line, params.position.character) {
+                        if let Some(hover) = handlers::handle_hover(
+                            doc_text,
+                            params.position.line,
+                            params.position.character,
+                        ) {
                             response.result = Some(serde_json::to_value(hover).unwrap());
                         } else {
                             response.result = Some(Value::Null);
@@ -129,7 +135,12 @@ fn handle_request<W: Write>(
             if let Some(params_val) = &req.params {
                 if let Ok(params) = serde_json::from_value::<DefinitionParams>(params_val.clone()) {
                     if let Some(doc_text) = documents.get(&params.text_document.uri) {
-                        if let Some(loc) = handlers::handle_definition(&params.text_document.uri, doc_text, params.position.line, params.position.character) {
+                        if let Some(loc) = handlers::handle_definition(
+                            &params.text_document.uri,
+                            doc_text,
+                            params.position.line,
+                            params.position.character,
+                        ) {
                             response.result = Some(serde_json::to_value(loc).unwrap());
                         } else {
                             response.result = Some(Value::Null);
@@ -161,15 +172,26 @@ fn handle_notification<W: Write>(
     match notif.method.as_str() {
         "textDocument/didOpen" => {
             if let Some(params_val) = &notif.params {
-                if let Ok(params) = serde_json::from_value::<protocol::DidOpenTextDocumentParams>(params_val.clone()) {
-                    documents.insert(params.text_document.uri.clone(), params.text_document.text.clone());
-                    publish_diagnostics(&params.text_document.uri, &params.text_document.text, writer)?;
+                if let Ok(params) = serde_json::from_value::<protocol::DidOpenTextDocumentParams>(
+                    params_val.clone(),
+                ) {
+                    documents.insert(
+                        params.text_document.uri.clone(),
+                        params.text_document.text.clone(),
+                    );
+                    publish_diagnostics(
+                        &params.text_document.uri,
+                        &params.text_document.text,
+                        writer,
+                    )?;
                 }
             }
         }
         "textDocument/didChange" => {
             if let Some(params_val) = &notif.params {
-                if let Ok(params) = serde_json::from_value::<protocol::DidChangeTextDocumentParams>(params_val.clone()) {
+                if let Ok(params) = serde_json::from_value::<protocol::DidChangeTextDocumentParams>(
+                    params_val.clone(),
+                ) {
                     if let Some(change) = params.content_changes.first() {
                         documents.insert(params.text_document.uri.clone(), change.text.clone());
                         publish_diagnostics(&params.text_document.uri, &change.text, writer)?;
@@ -179,7 +201,9 @@ fn handle_notification<W: Write>(
         }
         "textDocument/didClose" => {
             if let Some(params_val) = &notif.params {
-                if let Ok(params) = serde_json::from_value::<protocol::DefinitionParams>(params_val.clone()) {
+                if let Ok(params) =
+                    serde_json::from_value::<protocol::DefinitionParams>(params_val.clone())
+                {
                     documents.remove(&params.text_document.uri);
                 }
             }

@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use super::{make_builtin, module_map};
 use crate::diagnostics::CompilerError;
 use crate::runtime::value::RuntimeValue;
-use super::{make_builtin, module_map};
 
 pub fn build() -> RuntimeValue {
     let mut map = HashMap::new();
@@ -22,13 +22,25 @@ pub fn build() -> RuntimeValue {
         "sleep".to_string(),
         make_builtin("time.sleep", |args, l, c| {
             if args.len() != 1 {
-                return Err(CompilerError::ArityMismatch { name: "time.sleep".into(), expected: 1, found: args.len(), line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "time.sleep".into(),
+                    expected: 1,
+                    found: args.len(),
+                    line: l,
+                    column: c,
+                });
             }
             if let RuntimeValue::Integer(ms) = &args[0] {
                 thread::sleep(Duration::from_millis(*ms as u64));
                 return Ok(RuntimeValue::Null);
             }
-            Err(CompilerError::TypeMismatch { operation: "time.sleep".into(), expected: "Integer".into(), found: args[0].type_name().to_string(), line: l, column: c })
+            Err(CompilerError::TypeMismatch {
+                operation: "time.sleep".into(),
+                expected: "Integer".into(),
+                found: args[0].type_name().to_string(),
+                line: l,
+                column: c,
+            })
         }),
     );
     map.insert(

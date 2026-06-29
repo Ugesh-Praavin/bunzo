@@ -8,4 +8,4 @@ pub mod environment;
 pub mod eval;
 pub mod value;
 
-pub use eval::{execute, Interpreter};
+pub use eval::{Interpreter, execute};

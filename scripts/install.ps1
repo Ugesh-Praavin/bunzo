@@ -20,8 +20,8 @@ mkdir -Force $ExtractPath | Out-Null
 Expand-Archive -Path $ZipPath -DestinationPath $ExtractPath -Force
 
 # Check exe exists in zip
-if (-Not (Test-Path "$ExtractPath\bunzo.exe")) {
-    Write-Host "Error: bunzo.exe not found in archive!" -ForegroundColor Red
+if (-Not (Test-Path "$ExtractPath\bzc.exe")) {
+    Write-Host "Error: bzc.exe not found in archive!" -ForegroundColor Red
     exit 1
 }
 
@@ -29,7 +29,7 @@ if (-Not (Test-Path "$ExtractPath\bunzo.exe")) {
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
 # Copy exe
-Copy-Item "$ExtractPath\bunzo.exe" "$InstallDir\bunzo.exe" -Force
+Copy-Item "$ExtractPath\bzc.exe" "$InstallDir\bzc.exe" -Force
 
 # Copy runtime only if it exists
 if (Test-Path "$ExtractPath\runtime") {
@@ -39,7 +39,7 @@ if (Test-Path "$ExtractPath\runtime") {
 }
 
 # Verify install
-if (-Not (Test-Path "$InstallDir\bunzo.exe")) {
+if (-Not (Test-Path "$InstallDir\bzc.exe")) {
     Write-Host "Error: Installation failed!" -ForegroundColor Red
     exit 1
 }
@@ -57,4 +57,4 @@ if ($userPath -notlike "*$InstallDir*") {
 Remove-Item $ZipPath -Force
 Remove-Item $ExtractPath -Recurse -Force
 
-Write-Host "Done! Restart your terminal, then run: bunzo --help" -ForegroundColor Green
+Write-Host "Done! Restart your terminal, then run: bzc --help" -ForegroundColor Green

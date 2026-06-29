@@ -3,9 +3,9 @@
 use std::collections::HashMap;
 use std::process::Command;
 
+use super::{make_builtin, module_map};
 use crate::diagnostics::CompilerError;
 use crate::runtime::value::RuntimeValue;
-use super::{make_builtin, module_map};
 
 pub fn build() -> RuntimeValue {
     let mut map = HashMap::new();
@@ -13,7 +13,13 @@ pub fn build() -> RuntimeValue {
         "exec".to_string(),
         make_builtin("process.exec", |args, l, c| {
             if args.len() != 1 {
-                return Err(CompilerError::ArityMismatch { name: "process.exec".into(), expected: 1, found: args.len(), line: l, column: c });
+                return Err(CompilerError::ArityMismatch {
+                    name: "process.exec".into(),
+                    expected: 1,
+                    found: args.len(),
+                    line: l,
+                    column: c,
+                });
             }
             if let RuntimeValue::String(cmd) = &args[0] {
                 // Split command into executable and args
@@ -28,12 +34,24 @@ pub fn build() -> RuntimeValue {
                             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
                             return Ok(RuntimeValue::String(stdout));
                         }
-                        Err(e) => return Err(CompilerError::RuntimeException { message: format!("failed to execute command '{cmd}': {e}"), line: l, column: c }),
+                        Err(e) => {
+                            return Err(CompilerError::RuntimeException {
+                                message: format!("failed to execute command '{cmd}': {e}"),
+                                line: l,
+                                column: c,
+                            });
+                        }
                     }
                 }
                 return Ok(RuntimeValue::String(String::new()));
             }
-            Err(CompilerError::TypeMismatch { operation: "process.exec".into(), expected: "String".into(), found: args[0].type_name().to_string(), line: l, column: c })
+            Err(CompilerError::TypeMismatch {
+                operation: "process.exec".into(),
+                expected: "String".into(),
+                found: args[0].type_name().to_string(),
+                line: l,
+                column: c,
+            })
         }),
     );
     map.insert(

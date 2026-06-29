@@ -1,6 +1,6 @@
 [package]
 name = "bzc"
-version = "0.7.0"
+version = "0.8.0-alpha"
 edition = "2024"
 authors = ["Ugesh Praavin D"]
 license = "MIT OR Apache-2.0"
@@ -8,7 +8,7 @@ repository = "https://github.com/Ugesh-Praavin/bunzo"
 homepage = "https://bunzo.dev"
 
 [[bin]]
-name = "bunzo"
+name = "bzc"
 path = "src/main.rs"
 
 [dependencies]

@@ -88,7 +88,10 @@ impl<W: std::io::Write> Interpreter<W> {
     }
 
     /// Evaluates a single statement. If it is an ExpressionStatement, returns the value.
-    pub fn interpret_statement(&mut self, stmt: &Statement) -> Result<Option<RuntimeValue>, CompilerError> {
+    pub fn interpret_statement(
+        &mut self,
+        stmt: &Statement,
+    ) -> Result<Option<RuntimeValue>, CompilerError> {
         match stmt {
             Statement::ExpressionStatement { expression } => {
                 let val = self.eval_expr(expression)?;
@@ -105,7 +108,10 @@ impl<W: std::io::Write> Interpreter<W> {
                             });
                         }
                         Signal::Return(_) => {
-                            return Err(CompilerError::ReturnOutsideFunction { line: 0, column: 0 });
+                            return Err(CompilerError::ReturnOutsideFunction {
+                                line: 0,
+                                column: 0,
+                            });
                         }
                         _ => {}
                     }

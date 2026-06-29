@@ -1052,9 +1052,11 @@ impl Parser {
                 } else {
                     let next = self.peek();
                     match next.kind {
-                        TokenKind::Spawn | TokenKind::Channel | TokenKind::Match | TokenKind::Import | TokenKind::Export => {
-                            self.advance().lexeme
-                        }
+                        TokenKind::Spawn
+                        | TokenKind::Channel
+                        | TokenKind::Match
+                        | TokenKind::Import
+                        | TokenKind::Export => self.advance().lexeme,
                         _ => {
                             let t = self.expect(TokenKind::Identifier, "field name")?;
                             t.lexeme

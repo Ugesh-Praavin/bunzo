@@ -38,7 +38,7 @@ To run a program:
 
 If you run `bzc` with no arguments in a terminal, it starts the interactive shell:
 ```text
-Bunzo Interactive REPL v0.7.0
+Bunzo Interactive REPL v0.8.0-alpha
 >>> let x = 42
 >>> x + 8
 50
@@ -46,7 +46,7 @@ Bunzo Interactive REPL v0.7.0
 
 ---
 
-## Language Syntax (v0.7.0)
+## Language Syntax (v0.8.0-alpha)
 
 ### 1. Variables and Constants
 * Mutable variables: `let x = 10`

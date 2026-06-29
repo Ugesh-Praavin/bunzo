@@ -17,7 +17,7 @@ jobs:
       - name: Package Linux Tarball
         run: |
           mkdir -p release
-          cp target/release/bunzo release/
+          cp target/release/bzc release/
           cp -r runtime release/
           tar -czf bunzo-linux-x86_64.tar.gz -C release .
       - uses: actions/upload-artifact@v4

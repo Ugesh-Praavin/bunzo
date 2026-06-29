@@ -1,9 +1,9 @@
 //! Formatting entry points for Bunzo.
 
 pub mod style;
-pub mod writer;
 #[cfg(test)]
 pub mod tests;
+pub mod writer;
 
 use crate::diagnostics::CompilerError;
 

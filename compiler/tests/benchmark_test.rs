@@ -46,7 +46,7 @@ fn test_benchmark_no_run_generates_report() {
     // Verify report was written
     let results_dir = Path::new("benchmarks/results");
     assert!(results_dir.exists(), "Results directory was not created");
-    
+
     let entries = fs::read_dir(results_dir).unwrap();
     let mut matching_reports = 0;
     for entry in entries {
@@ -62,7 +62,10 @@ fn test_benchmark_no_run_generates_report() {
             }
         }
     }
-    assert_eq!(matching_reports, 1, "Expected exactly 1 matching JSON report");
+    assert_eq!(
+        matching_reports, 1,
+        "Expected exactly 1 matching JSON report"
+    );
 
     // Clean up
     cleanup_results(program_name);
@@ -119,7 +122,10 @@ fn test_benchmark_multiple_runs_shows_comparison() {
             }
         }
     }
-    assert_eq!(matching_reports, 2, "Expected exactly 2 matching JSON reports");
+    assert_eq!(
+        matching_reports, 2,
+        "Expected exactly 2 matching JSON reports"
+    );
 
     cleanup_results(program_name);
 }

@@ -70,12 +70,7 @@ impl Environment {
     }
 
     /// Define or overwrite a variable in this scope.
-    pub fn define_or_overwrite(
-        &mut self,
-        name: String,
-        value: RuntimeValue,
-        is_const: bool,
-    ) {
+    pub fn define_or_overwrite(&mut self, name: String, value: RuntimeValue, is_const: bool) {
         self.bindings.insert(
             name,
             VariableBinding {

@@ -117,6 +117,8 @@ fn test_new_stdlib_modules() {
     )
     .unwrap();
     let out_normalized = out.replace('\\', "/");
-    assert_eq!(out_normalized, "2\n100\ntrue\nval\n4\na/b\n41\nBuiltin\nBuiltin\n");
+    assert_eq!(
+        out_normalized,
+        "2\n100\ntrue\nval\n4\na/b\n41\nBuiltin\nBuiltin\n"
+    );
 }
-

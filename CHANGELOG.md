@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.8.0-alpha] - 2026-06-29
+
+### Added
+* Refactored command dispatch and argument parsing logic.
+* Version information commands (`bzc --version`, `bzc -V`) showing target build triple, compiler language, and repository info.
+* Categorized, aligned, and polished help screen (`bzc --help`).
+* Exit status codes conforming to standard conventions (0 for success, 1 for compilation/runtime/validation errors, 2 for invalid arguments/unknown commands/missing parameters).
+* Standardized CLI diagnostics using consistent compiler error codes (`E0001`, `E0002`, `E0003`).
+* Built executable renamed to `bzc` (and `bzc.exe`) to prevent double-binary confusion.
+
+## [v0.7.0] - 2026-06-23
+
+### Added
+* Intermediate Representation (IR) Generation and IR Optimization passes.
+* C Code Generator backend compiling optimized IR to C99.
+* Zero-dependency benchmarking framework (`bzc benchmark`).
+* Official source code formatter (`bzc fmt`) with comment preservation.
+* Linter subsystem (`bzc lint`) validating syntax style and quality.
+* Lightweight package manager (`bzc install`, `bzc add`, etc.) for managing dependencies in `bunzo.toml`.
+* Interactive REPL shell.
+* Language Server Protocol (LSP) server (`bzc lsp`) and companion VS Code Extension.
+
 ## [v0.6.0] - 2026-06-21
 
 ### Added

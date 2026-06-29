@@ -1,28 +1,28 @@
 //! Built-in Bunzo standard library modules (`import http`, `import db`, etc.).
 
+pub mod algorithm;
 pub mod builtins;
+pub mod collections;
+pub mod concurrency;
+pub mod crypto;
 pub mod db;
+pub mod encoding;
+pub mod environment;
+pub mod filesystem;
 pub mod http;
+pub mod io_module;
 pub mod json;
 pub mod math;
-pub mod os;
-pub mod collections;
-pub mod string;
-pub mod filesystem;
-pub mod path;
-pub mod time_module;
-pub mod random;
-pub mod crypto;
-pub mod encoding;
-pub mod process;
-pub mod io_module;
 pub mod networking;
-pub mod concurrency;
-pub mod environment;
-pub mod regex;
-pub mod algorithm;
 pub mod numeric;
+pub mod os;
+pub mod path;
+pub mod process;
+pub mod random;
+pub mod regex;
+pub mod string;
 pub mod test;
+pub mod time_module;
 
 pub use builtins::register_builtins;
 

@@ -1188,19 +1188,49 @@ impl TypeChecker {
                 column,
             } => {
                 let builtins = [
-                    "math", "json", "http", "db", "os",
-                    "vector", "deque", "stack", "queue", "priority_queue", "set", "hashset", "map", "hashmap", "bitset",
-                    "string", "filesystem", "path",
-                    "time", "random", "crypto", "encoding", "process", "io",
-                    "networking", "thread", "mutex", "channel", "environment", "rwlock",
-                    "atomic", "regex", "algorithm", "numeric", "test"
+                    "math",
+                    "json",
+                    "http",
+                    "db",
+                    "os",
+                    "vector",
+                    "deque",
+                    "stack",
+                    "queue",
+                    "priority_queue",
+                    "set",
+                    "hashset",
+                    "map",
+                    "hashmap",
+                    "bitset",
+                    "string",
+                    "filesystem",
+                    "path",
+                    "time",
+                    "random",
+                    "crypto",
+                    "encoding",
+                    "process",
+                    "io",
+                    "networking",
+                    "thread",
+                    "mutex",
+                    "channel",
+                    "environment",
+                    "rwlock",
+                    "atomic",
+                    "regex",
+                    "algorithm",
+                    "numeric",
+                    "test",
                 ];
                 if builtins.contains(&name.as_str()) {
                     self.env.borrow_mut().define(name.clone(), Type::Any);
                     return Ok(());
                 }
 
-                let (_, source) = crate::source::resolve_module(name, path.as_deref(), *line, *column)?;
+                let (_, source) =
+                    crate::source::resolve_module(name, path.as_deref(), *line, *column)?;
 
                 let tokens = crate::lexer::tokenize(&source)?;
                 let program = crate::parser::parse(tokens)?;

@@ -40,7 +40,9 @@ pub fn install() -> Result<(), String> {
 /// Adds a dependency to bunzo.toml and installs it.
 pub fn add(name: &str, url: &str) -> Result<(), String> {
     let mut manifest = Manifest::load_or_create("bunzo.toml")?;
-    manifest.dependencies.insert(name.to_string(), url.to_string());
+    manifest
+        .dependencies
+        .insert(name.to_string(), url.to_string());
     manifest.save("bunzo.toml")?;
 
     fs::create_dir_all("modules")
