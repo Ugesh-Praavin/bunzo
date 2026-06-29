@@ -230,6 +230,7 @@ By participating in this project, you agree to abide by our [Code of Conduct](CO
 ## Community
 
 - 📖 [Documentation](docs/)
+- 🛠️ [Release Engineering](docs/release_engineering.md)
 - 🐛 [Issue Tracker](https://github.com/ugeshpraavin/bunzo/issues)
 - 💬 [Discussions](https://github.com/ugeshpraavin/bunzo/discussions)
 

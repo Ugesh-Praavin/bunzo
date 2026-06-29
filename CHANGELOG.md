@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Exit status codes conforming to standard conventions (0 for success, 1 for compilation/runtime/validation errors, 2 for invalid arguments/unknown commands/missing parameters).
 * Standardized CLI diagnostics using consistent compiler error codes (`E0001`, `E0002`, `E0003`).
 * Built executable renamed to `bzc` (and `bzc.exe`) to prevent double-binary confusion.
+* Automated Rust-only release packaging tool (`cargo xtask`).
+* Portable release distribution staging for multiple platforms (`.zip` and `.tar.gz`).
+* Installer staging preparation under a dedicated directory structure.
+* Standardized release validation script verifying version consistency, checksum integrity, and archive contents.
+* Unified manifest (`manifest.json`) and metadata (`release-metadata.json`) schema.
+* Extracted release notes automatically generated from CHANGELOG.md.
 
 ## [v0.7.0] - 2026-06-23
 

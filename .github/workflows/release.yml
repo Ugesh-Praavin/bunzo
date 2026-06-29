@@ -1,4 +1,4 @@
-name: Release to SourceForge
+name: Release Package
 
 on:
   push:
@@ -15,21 +15,14 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build Release Binary
-        run: cargo build --release
+      - name: Run E2E Release Packaging
+        run: cargo xtask release
 
-      - name: Package Linux Tarball
-        run: |
-          mkdir -p release
-          cp target/release/bzc release/
-          cp -r runtime release/
-          tar -czf bunzo-linux-x86_64.tar.gz -C release .
-
-      - name: Upload Linux Artifact
+      - name: Upload Linux Staging
         uses: actions/upload-artifact@v4
         with:
-          name: bunzo-linux
-          path: bunzo-linux-x86_64.tar.gz
+          name: release-linux
+          path: release/
 
   build-windows:
     runs-on: windows-latest
@@ -40,22 +33,14 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build Release Binary
-        run: cargo build --release
+      - name: Run E2E Release Packaging
+        run: cargo xtask release
 
-      - name: Package Windows Zip
-        shell: pwsh
-        run: |
-          mkdir release
-          copy target/release/bzc.exe release/
-          Copy-Item -Path runtime -Destination release/runtime -Recurse
-          Compress-Archive -Path release/* -DestinationPath bunzo-windows-x86_64.zip
-
-      - name: Upload Windows Artifact
+      - name: Upload Windows Staging
         uses: actions/upload-artifact@v4
         with:
-          name: bunzo-windows
-          path: bunzo-windows-x86_64.zip
+          name: release-windows
+          path: release/
 
   release:
     needs: [build-linux, build-windows]
@@ -64,43 +49,57 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Download Linux Artifact
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Download Linux Staging
         uses: actions/download-artifact@v4
         with:
-          name: bunzo-linux
-          path: release
+          name: release-linux
+          path: release-linux/release/
 
-      - name: Download Windows Artifact
+      - name: Download Windows Staging
         uses: actions/download-artifact@v4
         with:
-          name: bunzo-windows
-          path: release
+          name: release-windows
+          path: release-windows/release/
 
-      - name: Setup SSH
+      - name: Create Combined Release Folder
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SF_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H frs.sourceforge.net >> ~/.ssh/known_hosts
+          mkdir -p release/portable
+          mkdir -p release/checksums
+          mkdir -p release/notes
+          mkdir -p release/metadata
+          mkdir -p release/manifests
+          
+          # Copy portable archives
+          cp -r release-linux/release/portable/* release/portable/ || true
+          cp -r release-windows/release/portable/* release/portable/ || true
+          
+          # Copy checksum files
+          cp -r release-linux/release/checksums/* release/checksums/ || true
+          cp -r release-windows/release/checksums/* release/checksums/ || true
+          
+          # Copy release metadata JSON files
+          cp -r release-linux/release/metadata/release-metadata.json release/metadata/release-metadata-linux.json || true
+          cp -r release-windows/release/metadata/release-metadata.json release/metadata/release-metadata-windows.json || true
+          
+          # Copy release notes
+          cp -r release-windows/release/notes/release-notes.md release/notes/release-notes.md || true
 
-      - name: Prepare Release Directory
-        run: |
-          mkdir -p release/${{ github.ref_name }}
-          mv release/bunzo-linux-x86_64.tar.gz release/${{ github.ref_name }}/
-          mv release/bunzo-windows-x86_64.zip release/${{ github.ref_name }}/
-          cp scripts/install.sh release/${{ github.ref_name }}/
-          cp scripts/install.ps1 release/${{ github.ref_name }}/
+      - name: Merge Manifests
+        run: cargo xtask merge release-linux release-windows .
 
-      - name: Upload to SourceForge
-        run: |
-          # Upload tag-specific folder
-          scp -r \
-            release/${{ github.ref_name }} \
-            ${{ secrets.SF_USERNAME }}@frs.sourceforge.net:/home/frs/project/bunzo/
-          # Also update the latest root files
-          scp \
-            release/${{ github.ref_name }}/bunzo-linux-x86_64.tar.gz \
-            release/${{ github.ref_name }}/bunzo-windows-x86_64.zip \
-            scripts/install.sh \
-            scripts/install.ps1 \
-            ${{ secrets.SF_USERNAME }}@frs.sourceforge.net:/home/frs/project/bunzo/
+      - name: Create Draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          body_path: release/notes/release-notes.md
+          files: |
+            release/portable/*
+            release/checksums/*
+            release/metadata/*
+            release/manifests/*
+            release/notes/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
