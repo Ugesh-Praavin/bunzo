@@ -5,7 +5,20 @@
 //! code based on the result.
 
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
+    let mut args: Vec<String> = std::env::args().collect();
+
+    // Check executable name for BusyBox-style multi-call routing
+    if let Ok(exe_path) = std::env::current_exe() {
+        if exe_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .filter(|name| *name == "bzfmt")
+            .is_some()
+        {
+            // If run as `bzfmt <args>`, route to `bzc fmt <args>`
+            args.insert(1, "fmt".to_string());
+        }
+    }
 
     if let Err(err) = bzc::cli::run(&args) {
         eprintln!("{err}");

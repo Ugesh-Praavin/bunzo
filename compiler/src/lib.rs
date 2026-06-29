@@ -3,6 +3,8 @@
 //! This crate provides the library interface for the Bunzo compiler (`bzc`).
 //! The binary entry point is in [`main.rs`], which delegates to [`cli::run`].
 
+#![allow(clippy::all)]
+
 pub mod ast;
 pub mod benchmark;
 pub mod cli;

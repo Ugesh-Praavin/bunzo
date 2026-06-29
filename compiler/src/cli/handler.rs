@@ -168,6 +168,9 @@ pub enum Command {
     Remove {
         package_name: String,
     },
+    New {
+        project_name: String,
+    },
     Lsp,
 }
 
@@ -251,15 +254,38 @@ pub fn parse_args(args: &[String]) -> Result<Command, CliError> {
             })
         }
         "build" => {
-            if args.len() < 3 {
-                return Err(CliError::MissingParameters {
-                    message: "missing source file".to_string(),
-                    usage: BUILD_USAGE.to_string(),
-                });
-            }
-            let file_path = args[2].clone();
+            let mut file_path = None;
             let mut output_path = None;
+
+            if args.len() < 3 {
+                if Path::new("bunzo.toml").exists() {
+                    if let Ok(manifest) =
+                        crate::packagemanager::manifest::Manifest::load_or_create("bunzo.toml")
+                    {
+                        let proj_bz = format!("{}.bz", manifest.name);
+                        if Path::new(&proj_bz).exists() {
+                            file_path = Some(proj_bz);
+                        } else if Path::new("main.bz").exists() {
+                            file_path = Some("main.bz".to_string());
+                        }
+                    }
+                }
+
+                if file_path.is_none() {
+                    return Err(CliError::MissingParameters {
+                        message: "missing source file".to_string(),
+                        usage: BUILD_USAGE.to_string(),
+                    });
+                }
+            } else {
+                file_path = Some(args[2].clone());
+            }
+
+            let file_path = file_path.unwrap();
             let mut i = 3;
+            if args.len() < 3 {
+                i = 2;
+            }
             while i < args.len() {
                 if args[i] == "-o" {
                     if i + 1 < args.len() {
@@ -282,6 +308,22 @@ pub fn parse_args(args: &[String]) -> Result<Command, CliError> {
                 file_path,
                 output_path,
             })
+        }
+        "new" => {
+            if args.len() < 3 {
+                return Err(CliError::MissingParameters {
+                    message: "missing project name".to_string(),
+                    usage: "bzc new <project_name>".to_string(),
+                });
+            }
+            let project_name = args[2].clone();
+            if args.len() > 3 {
+                return Err(CliError::InvalidArguments {
+                    message: format!("unexpected argument '{}'", args[3]),
+                    usage: "bzc new <project_name>".to_string(),
+                });
+            }
+            Ok(Command::New { project_name })
         }
         "benchmark" => {
             if args.len() < 3 {
@@ -600,6 +642,10 @@ pub fn run(args: &[String]) -> Result<(), CliError> {
             crate::packagemanager::remove(&package_name).map_err(CliError::Runtime)?;
             Ok(())
         }
+        Command::New { project_name } => {
+            run_new(&project_name)?;
+            Ok(())
+        }
         Command::Lsp => {
             crate::lsp::run().map_err(CliError::Runtime)?;
             Ok(())
@@ -679,9 +725,35 @@ fn run_codegen(
             .ok_or_else(|| CliError::Runtime("Invalid runtime path".to_string()))?;
 
         // Try compilers.
-        let compilers = [
-            (
-                "clang",
+        let mut compilers = Vec::new();
+
+        let mut bundled_clang_path = None;
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                if let Some(bunzo_dir) = exe_dir.parent() {
+                    let bundled_bin = bunzo_dir.join("toolchain").join("bin").join("clang.exe");
+                    if bundled_bin.exists() {
+                        bundled_clang_path = Some(bundled_bin);
+                    } else {
+                        let bundled_bin_alt = bunzo_dir.join("toolchain").join("clang.exe");
+                        if bundled_bin_alt.exists() {
+                            bundled_clang_path = Some(bundled_bin_alt);
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut bundled_clang_str = String::new();
+        if let Some(path) = bundled_clang_path {
+            if let Some(p_str) = path.to_str() {
+                bundled_clang_str = p_str.to_string();
+            }
+        }
+
+        if !bundled_clang_str.is_empty() {
+            compilers.push((
+                bundled_clang_str.as_str(),
                 vec![
                     "-O2",
                     "-o",
@@ -692,34 +764,50 @@ fn run_codegen(
                     runtime_include,
                     "-lm",
                 ],
-            ),
-            (
-                "gcc",
-                vec![
-                    "-O2",
-                    "-o",
-                    &exe_path,
-                    &c_file_path,
-                    runtime_c_path.to_str().unwrap(),
-                    "-I",
-                    runtime_include,
-                    "-lm",
-                ],
-            ),
-            (
-                "cc",
-                vec![
-                    "-O2",
-                    "-o",
-                    &exe_path,
-                    &c_file_path,
-                    runtime_c_path.to_str().unwrap(),
-                    "-I",
-                    runtime_include,
-                    "-lm",
-                ],
-            ),
-        ];
+            ));
+        }
+
+        compilers.push((
+            "clang",
+            vec![
+                "-O2",
+                "-o",
+                &exe_path,
+                &c_file_path,
+                runtime_c_path.to_str().unwrap(),
+                "-I",
+                runtime_include,
+                "-lm",
+            ],
+        ));
+
+        compilers.push((
+            "gcc",
+            vec![
+                "-O2",
+                "-o",
+                &exe_path,
+                &c_file_path,
+                runtime_c_path.to_str().unwrap(),
+                "-I",
+                runtime_include,
+                "-lm",
+            ],
+        ));
+
+        compilers.push((
+            "cc",
+            vec![
+                "-O2",
+                "-o",
+                &exe_path,
+                &c_file_path,
+                runtime_c_path.to_str().unwrap(),
+                "-I",
+                runtime_include,
+                "-lm",
+            ],
+        ));
 
         let mut compiled = false;
         for (cc, cc_args) in &compilers {
@@ -872,4 +960,40 @@ fn run_lint(path_str: &str) -> Result<(), String> {
         println!("All checks passed!");
         Ok(())
     }
+}
+
+fn run_new(project_name: &str) -> Result<(), CliError> {
+    let path = Path::new(project_name);
+    if path.exists() {
+        return Err(CliError::Runtime(format!(
+            "Error: Directory '{}' already exists",
+            project_name
+        )));
+    }
+
+    std::fs::create_dir_all(path)
+        .map_err(|e| CliError::Runtime(format!("Failed to create project directory: {}", e)))?;
+
+    let toml_content = format!(
+        "\
+[package]
+name = \"{}\"
+version = \"0.1.0\"
+
+[dependencies]
+",
+        project_name
+    );
+    std::fs::write(path.join("bunzo.toml"), toml_content)
+        .map_err(|e| CliError::Runtime(format!("Failed to create bunzo.toml: {}", e)))?;
+
+    let bz_content = "\
+// Hello world project created by Bunzo
+print(\"Hello, World!\")
+";
+    std::fs::write(path.join(format!("{}.bz", project_name)), bz_content)
+        .map_err(|e| CliError::Runtime(format!("Failed to create source file: {}", e)))?;
+
+    println!("Created new Bunzo project '{}'", project_name);
+    Ok(())
 }

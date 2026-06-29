@@ -3,6 +3,9 @@ name = "xtask"
 version = "0.1.0"
 edition = "2024"
 
+[lints]
+workspace = true
+
 [dependencies]
 zip = "2.2.0"
 tar = "0.4.43"

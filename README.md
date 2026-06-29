@@ -132,6 +132,10 @@ Interpreter      Compiler     ← Execute or compile to native code
 
 ## Getting Started
 
+### Installation
+* **Windows**: Download and run the latest [Windows Installer](release/installer/bunzo-0.8.0-alpha-windows-x64-setup.exe) which automatically configures the PATH and bundles a self-contained Clang compiler toolchain. For more information, see the [Getting Started Guide](docs/getting_started.md).
+* **Other Platforms / Building from Source**: See below.
+
 ### Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install) (stable toolchain)

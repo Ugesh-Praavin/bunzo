@@ -88,9 +88,8 @@ fn get_version() -> Result<String, Box<dyn std::error::Error>> {
     for line in content.lines() {
         let trimmed = line.trim();
         if trimmed.starts_with("version") {
-            if let Some(val) = trimmed.split('=').nth(1) {
-                return Ok(val.trim().trim_matches('"').to_string());
-            }
+            let val = trimmed.split('=').nth(1).ok_or("Could not split version")?;
+            return Ok(val.trim().trim_matches('"').to_string());
         }
     }
     Err("Could not find version in compiler/Cargo.toml".into())
@@ -114,12 +113,7 @@ fn get_platform_info() -> (&'static str, &'static str) {
     let os = std::env::consts::OS;
     let arch = std::env::consts::ARCH;
 
-    let platform = match os {
-        "windows" => "windows",
-        "linux" => "linux",
-        "macos" => "macos",
-        _ => os,
-    };
+    let platform = os;
 
     let architecture = match arch {
         "x86_64" => "x64",
@@ -220,6 +214,84 @@ fn extract_release_notes(
     Ok(notes.join("\n"))
 }
 
+fn download_toolchain(zip_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Downloading LLVM-MinGW toolchain...");
+    let url = "https://github.com/mstorsjo/llvm-mingw/releases/download/20240619/llvm-mingw-20240619-ucrt-x86_64.zip";
+    let status = std::process::Command::new("curl")
+        .args(["-L", "-o", zip_path.to_str().unwrap(), url])
+        .status()?;
+    if !status.success() {
+        return Err("Failed to download toolchain using curl".into());
+    }
+    Ok(())
+}
+
+fn extract_toolchain(zip_path: &Path, dest_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    println!(
+        "Extracting LLVM-MinGW toolchain to {}...",
+        dest_dir.display()
+    );
+    let file = File::open(zip_path)?;
+    let mut archive = zip::ZipArchive::new(file)?;
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i)?;
+        let outpath = match file.enclosed_name() {
+            Some(path) => path.to_owned(),
+            None => continue,
+        };
+
+        let mut components = outpath.components();
+        components.next(); // Skip root
+        let relative_path = components.as_path();
+
+        if relative_path.as_os_str().is_empty() {
+            continue;
+        }
+
+        let file_dest_path = dest_dir.join(relative_path);
+
+        if (*file.name()).ends_with('/') {
+            fs::create_dir_all(&file_dest_path)?;
+        } else {
+            if let Some(p) = file_dest_path.parent().filter(|p| !p.exists()) {
+                fs::create_dir_all(p)?;
+            }
+            let mut outfile = File::create(&file_dest_path)?;
+            io::copy(&mut file, &mut outfile)?;
+        }
+    }
+    Ok(())
+}
+
+fn run_iscc(version: &str) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Compiling Inno Setup installer...");
+
+    let mut iscc_path = "iscc".to_string();
+
+    let paths_to_check = [
+        "C:\\Users\\ugesh_developer\\AppData\\Local\\Programs\\Inno Setup 6\\ISCC.exe",
+        "C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe",
+        "C:\\Program Files\\Inno Setup 6\\ISCC.exe",
+    ];
+    for p in &paths_to_check {
+        if Path::new(p).exists() {
+            iscc_path = p.to_string();
+            break;
+        }
+    }
+
+    let version_define = format!("/DMyAppVersion={}", version);
+    let status = std::process::Command::new(&iscc_path)
+        .args([&version_define, "installer.iss"])
+        .status()?;
+
+    if !status.success() {
+        return Err("Inno Setup compilation failed".into());
+    }
+    Ok(())
+}
+
 fn handle_dist() -> Result<(), Box<dyn std::error::Error>> {
     println!("Building and assembling release packaging...");
 
@@ -249,9 +321,20 @@ fn handle_dist() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(&notes_dir)?;
     fs::create_dir_all(&manifests_dir)?;
 
-    println!("Assembling files in release/installer/...");
+    // Define temporary staging directories in target/
+    let staging_portable = Path::new("target").join("staging-portable");
+    let staging_installer = Path::new("target").join("staging-installer");
 
-    // Copy compiler binary
+    // Clean them first
+    if staging_portable.exists() {
+        fs::remove_dir_all(&staging_portable)?;
+    }
+    if staging_installer.exists() {
+        fs::remove_dir_all(&staging_installer)?;
+    }
+    fs::create_dir_all(&staging_portable)?;
+    fs::create_dir_all(&staging_installer)?;
+
     let bin_name = if platform == "windows" {
         "bzc.exe"
     } else {
@@ -265,25 +348,26 @@ fn handle_dist() -> Result<(), Box<dyn std::error::Error>> {
         )
         .into());
     }
-    fs::copy(&release_bin_path, installer_dir.join(bin_name))?;
 
-    // Copy repo assets
+    // --- 1. Assemble Portable Staging ---
+    println!("Assembling portable files...");
+    fs::copy(&release_bin_path, staging_portable.join(bin_name))?;
+
     let files_to_copy = ["LICENSE", "README.md", "CHANGELOG.md"];
     for file in &files_to_copy {
         if Path::new(file).exists() {
-            fs::copy(file, installer_dir.join(file))?;
+            fs::copy(file, staging_portable.join(file))?;
         }
     }
 
-    // Copy repo folders
     let folders_to_copy = ["examples", "stdlib", "docs", "runtime"];
     for folder in &folders_to_copy {
         if Path::new(folder).exists() {
-            copy_dir_all(folder, installer_dir.join(folder))?;
+            copy_dir_all(folder, staging_portable.join(folder))?;
         }
     }
 
-    // Archive creation
+    // --- 2. Generate Portable Archive ---
     let archive_base_name = format!("bunzo-v{}-{}-{}", version, platform, arch);
     let archive_name = if platform == "windows" {
         format!("{}.zip", archive_base_name)
@@ -294,19 +378,84 @@ fn handle_dist() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Generating portable archive: {}...", archive_name);
     if platform == "windows" {
-        create_zip_archive(&installer_dir, &archive_path)?;
+        create_zip_archive(&staging_portable, &archive_path)?;
     } else {
-        create_tar_gz(&installer_dir, &archive_path)?;
+        create_tar_gz(&staging_portable, &archive_path)?;
     }
 
-    // Checksum generation
-    println!("Generating SHA256 checksum...");
+    // Generate SHA256 for portable archive
+    println!("Generating SHA256 checksum for portable archive...");
     let checksum = compute_sha256(&archive_path)?;
     let checksum_name = format!("{}.sha256", archive_name);
     let checksum_path = checksums_dir.join(&checksum_name);
     fs::write(&checksum_path, format!("{}  {}\n", checksum, archive_name))?;
 
-    // Metadata & Manifest generation
+    let mut artifacts = vec![Artifact {
+        name: archive_name.clone(),
+        size: fs::metadata(&archive_path)?.len(),
+        sha256: checksum,
+        kind: "portable".to_string(),
+    }];
+
+    // --- 3. Windows-Specific Installer Packaging ---
+    if platform == "windows" {
+        println!("Setting up Windows Installer Staging...");
+
+        // Setup bin/ structure
+        let inst_bin = staging_installer.join("bin");
+        fs::create_dir_all(&inst_bin)?;
+        fs::copy(&release_bin_path, inst_bin.join("bzc.exe"))?;
+        fs::copy(&release_bin_path, inst_bin.join("bzfmt.exe"))?;
+        fs::copy(&release_bin_path, inst_bin.join("bzpm.exe"))?;
+
+        // Copy runtime, std, examples, docs, licenses
+        copy_dir_all("runtime", staging_installer.join("runtime"))?;
+        copy_dir_all("stdlib", staging_installer.join("std"))?;
+        copy_dir_all("examples", staging_installer.join("examples"))?;
+        copy_dir_all("docs", staging_installer.join("docs"))?;
+
+        fs::copy("LICENSE", staging_installer.join("LICENSE"))?;
+        fs::copy("README.md", staging_installer.join("README.md"))?;
+        fs::copy("CHANGELOG.md", staging_installer.join("CHANGELOG.md"))?;
+
+        // Download and bundle LLVM-MinGW toolchain
+        let zip_toolchain_path = Path::new("target").join("llvm-mingw-x86_64.zip");
+        if !zip_toolchain_path.exists() {
+            download_toolchain(&zip_toolchain_path)?;
+        }
+
+        let inst_toolchain = staging_installer.join("toolchain");
+        extract_toolchain(&zip_toolchain_path, &inst_toolchain)?;
+
+        // Run Inno Setup Compiler
+        run_iscc(&version)?;
+
+        // Verify installer was created
+        let installer_name = format!("bunzo-{}-windows-x64-setup.exe", version);
+        let installer_path = installer_dir.join(&installer_name);
+        if !installer_path.exists() {
+            return Err("Installer binary was not found after compilation".into());
+        }
+
+        // Generate SHA256 checksum for installer
+        println!("Generating SHA256 checksum for installer...");
+        let inst_checksum = compute_sha256(&installer_path)?;
+        let inst_checksum_name = format!("{}.sha256", installer_name);
+        let inst_checksum_path = checksums_dir.join(&inst_checksum_name);
+        fs::write(
+            &inst_checksum_path,
+            format!("{}  {}\n", inst_checksum, installer_name),
+        )?;
+
+        artifacts.push(Artifact {
+            name: installer_name.clone(),
+            size: fs::metadata(&installer_path)?.len(),
+            sha256: inst_checksum,
+            kind: "installer".to_string(),
+        });
+    }
+
+    // --- 4. Metadata & Manifest Generation ---
     println!("Generating release metadata and manifest...");
     let meta = ReleaseMetadata {
         version: version.clone(),
@@ -318,9 +467,7 @@ fn handle_dist() -> Result<(), Box<dyn std::error::Error>> {
     let meta_json = serde_json::to_string_pretty(&meta)?;
     fs::write(metadata_dir.join("release-metadata.json"), meta_json)?;
 
-    let archive_size = fs::metadata(&archive_path)?.len();
     let release_date = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
-
     let manifest = Manifest {
         name: "Bunzo".to_string(),
         version: version.clone(),
@@ -328,12 +475,7 @@ fn handle_dist() -> Result<(), Box<dyn std::error::Error>> {
         release_date,
         platform: platform.to_string(),
         architecture: arch.to_string(),
-        artifacts: vec![Artifact {
-            name: archive_name.clone(),
-            size: archive_size,
-            sha256: checksum,
-            kind: "portable".to_string(),
-        }],
+        artifacts,
     };
     let manifest_json = serde_json::to_string_pretty(&manifest)?;
     fs::write(manifests_dir.join("manifest.json"), manifest_json)?;
@@ -388,13 +530,25 @@ fn handle_validate() -> Result<(), Box<dyn std::error::Error>> {
     let manifest_path = staging_root.join("manifests").join("manifest.json");
     let notes_path = staging_root.join("notes").join("release-notes.md");
 
-    let check_files = [
+    let mut check_files = vec![
         &archive_path,
         &checksum_path,
         &meta_path,
         &manifest_path,
         &notes_path,
     ];
+
+    let installer_name = format!("bunzo-{}-windows-x64-setup.exe", version);
+    let installer_path = staging_root.join("installer").join(&installer_name);
+    let inst_checksum_path = staging_root
+        .join("checksums")
+        .join(format!("{}.sha256", installer_name));
+
+    if platform == "windows" {
+        check_files.push(&installer_path);
+        check_files.push(&inst_checksum_path);
+    }
+
     for f in &check_files {
         if !f.exists() {
             return Err(format!("Validation failed: file '{}' is missing", f.display()).into());
@@ -432,6 +586,18 @@ fn handle_validate() -> Result<(), Box<dyn std::error::Error>> {
             archive_name, calculated_hash, saved_checksum_content
         )
         .into());
+    }
+
+    if platform == "windows" {
+        let inst_calculated_hash = compute_sha256(&installer_path)?;
+        let inst_saved_checksum_content = fs::read_to_string(&inst_checksum_path)?;
+        if !inst_saved_checksum_content.contains(&inst_calculated_hash) {
+            return Err(format!(
+                "Validation failed: checksum mismatch for {}. Calculated: {}, saved: {}",
+                installer_name, inst_calculated_hash, inst_saved_checksum_content
+            )
+            .into());
+        }
     }
 
     // 5. Inspect archive contents

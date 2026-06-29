@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Standardized release validation script verifying version consistency, checksum integrity, and archive contents.
 * Unified manifest (`manifest.json`) and metadata (`release-metadata.json`) schema.
 * Extracted release notes automatically generated from CHANGELOG.md.
+* Production-quality Windows Installer utilizing Inno Setup.
+* Bundled self-contained Clang/LLVM toolchain inside the Windows distribution.
+* Automatic compiler detection prioritizing bundled Clang, falling back to system compilers.
+* BusyBox-style multi-call routing for `bzfmt` and `bzpm` alias binaries.
+* Automatic system PATH configuration and environment broadcast updates.
+* Complete uninstaller cleaning binaries, toolchain, environment PATHs, and shortcuts.
+* Project initialization subcommand (`bzc new`) and automatic package build (`bzc build` without arguments).
+* Silent/unattended installation support (`/VERYSILENT`).
 
 ## [v0.7.0] - 2026-06-23
 

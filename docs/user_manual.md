@@ -14,6 +14,22 @@ Bunzo comes with an all-in-one compiler and toolchain called `bzc`.
 
 The `bzc` command-line interface provides several subcommands for managing your code.
 
+- **Create a new project**:
+  ```bash
+  bzc new hello
+  ```
+  Creates a new directory named `hello` with a default `bunzo.toml` manifest and a hello world `<project_name>.bz` file.
+
+- **Build/Compile a project**:
+  ```bash
+  bzc build
+  ```
+  Compiles the project in the current directory using the settings in `bunzo.toml`. You can also compile a specific file:
+  ```bash
+  bzc build hello.bz [-o output.exe]
+  ```
+  Bunzo will automatically detect and prioritize its bundled Clang toolchain, falling back to system-wide compilers if necessary.
+
 - **Run a program**:
   ```bash
   bzc run my_script.bz
@@ -30,7 +46,7 @@ The `bzc` command-line interface provides several subcommands for managing your 
   ```bash
   bzc fmt .
   ```
-  Automatically formats your Bunzo source code to match the standard style guidelines.
+  Automatically formats your Bunzo source code to match the standard style guidelines. (Also supports multi-call routing: running `bzfmt` routes immediately to `bzc fmt`).
 
 - **Linter**:
   ```bash
@@ -40,7 +56,7 @@ The `bzc` command-line interface provides several subcommands for managing your 
 
 - **Package Manager**:
   Manage third-party dependencies natively via a `bunzo.toml` file.
-  - `bzc install`: Installs dependencies listed in `bunzo.toml`.
+  - `bzc install`: Installs dependencies listed in `bunzo.toml`. (Also supports multi-call routing: running `bzpm` routes immediately to package manager commands).
   - `bzc add <package_name> <git_url>`: Adds a new dependency.
   - `bzc remove <package_name>`: Removes a dependency.
   - `bzc update`: Updates all dependencies to their latest versions.

@@ -21,12 +21,12 @@ The `cargo xtask` runner exposes the following subcommands:
 Removes the `release/` directory and any temporary build assets.
 
 ### 2. `cargo xtask dist`
-Compiles `bzc` in release mode, gathers all documentation, license, examples, standard libraries, and runtime components, and creates portable packages and manifests under `release/`.
+Compiles `bzc` in release mode, gathers all documentation, license, examples, standard libraries, and runtime components. On Windows, it also downloads a portable Clang toolchain, extracts it, and runs the Inno Setup compiler to produce `release/installer/bunzo-<version>-windows-x64-setup.exe`.
 
 ### 3. `cargo xtask validate`
-Performs validation checks:
+Performs release validation checks:
 - Checks version consistency across `Cargo.toml`, metadata files, and user documentation.
-- Computes SHA256 checksums and validates they match the `.sha256` files.
+- Computes SHA256 checksums for both portable archives and Windows installers, validating they match the `.sha256` files.
 - Inspects the generated `.zip` or `.tar.gz` archive to verify that all necessary binaries, headers, standard libraries, and examples are present.
 
 ### 4. `cargo xtask release`
@@ -44,24 +44,18 @@ All generated release assets are outputted to the `/release/` directory (which i
 ```text
 release/
 ├── portable/
-│   └── bunzo-v0.8.0-alpha-windows-x64.zip          # Portable zipped archive
+│   └── bunzo-v0.8.0-alpha-windows-x64.zip             # Portable zipped archive
 ├── installer/
-│   ├── bzc.exe                                     # Unzipped release binary
-│   ├── LICENSE                                     # Project license
-│   ├── README.md
-│   ├── CHANGELOG.md
-│   ├── stdlib/                                     # Standard library
-│   ├── examples/                                   # Project examples
-│   ├── docs/                                       # Markdowns
-│   └── runtime/                                    # GC & runtime headers/source
+│   └── bunzo-0.8.0-alpha-windows-x64-setup.exe        # Compiled Windows installer
 ├── metadata/
-│   └── release-metadata.json                       # Short release metadata
+│   └── release-metadata.json                          # Short release metadata
 ├── manifests/
-│   └── manifest.json                               # Detailed manifest consumed by website/winget
+│   └── manifest.json                                  # Detailed manifest consumed by website/winget
 ├── checksums/
-│   └── bunzo-v0.8.0-alpha-windows-x64.zip.sha256   # SHA256 checksum file
+│   ├── bunzo-v0.8.0-alpha-windows-x64.zip.sha256      # Portable archive checksum
+│   └── bunzo-0.8.0-alpha-windows-x64-setup.exe.sha256 # Installer checksum
 └── notes/
-    └── release-notes.md                            # Release notes extracted from CHANGELOG
+    └── release-notes.md                               # Release notes extracted from CHANGELOG
 ```
 
 ---

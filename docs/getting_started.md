@@ -10,27 +10,45 @@ Bunzo is a modern, developer-friendly programming language designed to reduce bo
 
 ---
 
-## Installation & Running a Bunzo Program
+## Installation
 
-Bunzo programs are written in text files with the `.bz` extension. The `bzc` tool compiles or interprets these files.
+### Windows Installer (Recommended)
+Bunzo provides a professional Windows installer (`bunzo-<version>-windows-x64-setup.exe`) that automatically installs the compiler, standard library, runtime context, and a **self-contained Clang/LLVM toolchain**. 
 
-To run a program:
+**Features:**
+* **Zero Dependencies**: You do not need to install Microsoft Visual Studio, MinGW, or separate LLVM/Clang packages manually. Bunzo detects and uses its bundled toolchain out-of-the-box.
+* **Automatic PATH Setup**: Installs to `C:\Program Files\Bunzo` and adds the binary directory (`C:\Program Files\Bunzo\bin`) to the system PATH.
+* **Windows Integration**: Fully registers in Windows "Apps & Features" for tracking, display size computation, and uninstallation.
 
-1. Create a file named `hello.bz`.
-2. Write the following code:
-   ```bunzo
-   print("Hello, Bunzo!")
-   ```
-3. Execute the program using the compiler CLI:
-   ```bash
-   cargo run -p bzc -- run hello.bz
-   ```
-4. Output:
-   ```text
-   Reading hello.bz...
+#### Silent Installation (for Package Managers like WinGet/Chocolatey/Scoop)
+To perform a completely silent, non-interactive installation:
+```powershell
+bunzo-0.8.0-alpha-windows-x64-setup.exe /VERYSILENT /NORESTART /SUPPRESSMSGBOXES
+```
 
-   Hello, Bunzo!
-   ```
+#### Uninstallation
+Uninstall Bunzo easily through the Windows Settings app ("Apps & Features") or run the uninstaller directly:
+```powershell
+"C:\Program Files\Bunzo\Uninstall Bunzo.exe" /VERYSILENT
+```
+Uninstallation will completely remove all Bunzo binaries, standard libraries, runtime, bundled Clang toolchain files, shortcuts, and PATH entries without touching your custom project files.
+
+### Verifying the Installation
+Once installed, open a new terminal window and run the following commands to verify:
+```powershell
+# 1. Verify compiler version and environment metadata
+bzc --version
+
+# 2. Create a new project hello
+bzc new hello
+cd hello
+
+# 3. Compile the hello project using the bundled Clang compiler
+bzc build
+
+# 4. Run the compiled executable
+.\hello.exe
+```
 
 ---
 

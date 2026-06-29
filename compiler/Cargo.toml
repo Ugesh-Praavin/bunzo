@@ -7,6 +7,9 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/Ugesh-Praavin/bunzo"
 homepage = "https://bunzo.dev"
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "bzc"
 path = "src/main.rs"
